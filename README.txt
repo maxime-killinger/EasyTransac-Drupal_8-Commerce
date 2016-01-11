@@ -22,6 +22,10 @@ INSTALLATION
    https://drupal.org/documentation/install/modules-themes/modules-7
    for further information.
 
+
+CONFIGURATION
+-------------
+
  * Create an account on https://www.easytransac.com and configure your 
    application by allowing your server's IP address. This will provide you with 
    an API Key.
