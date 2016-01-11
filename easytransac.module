@@ -1,0 +1,450 @@
+<?php
+
+/**
+ * @file
+ * Implements Easytransac Website Payment in Drupal Commerce checkout.
+ */
+
+/**
+ * Implements hook_commerce_payment_method_info().
+ */
+function easytransac_commerce_payment_method_info()
+{
+	$payment_methods = array();
+
+	$payment_methods['easytransac'] = array(
+		'base'			 => 'easytransac',
+		'title'			 => t('EasyTransac Payment'),
+		'short_title'		 => t('ET Payment'),
+		'description'		 => t('Easytransac Website Payment'),
+		'display_title'		 => t('Easytransac Website Payment'),
+		'active'		 => TRUE,
+		'terminal'		 => FALSE,
+		'offsite'		 => TRUE,
+		'offsite_autoredirect'	 => TRUE,
+	);
+
+	return $payment_methods;
+}
+
+/**
+ * Returns the default settings for the EasyTransac payment method.
+ */
+function easytransac_default_settings()
+{
+	return array(
+		'api_key'	 => '',
+		'currency_code'	 => 'EUR',
+		'3ds'		 => TRUE,
+	);
+}
+
+/**
+ * Implements hook_menu().
+ */
+function easytransac_menu()
+{
+	$items['easytransac/notification'] = array(
+		'page callback'		 => 'easytransac_notification',
+		'type'			 => MENU_CALLBACK,
+		'access callback'	 => 'easytransac_notification_access',
+	);
+	return $items;
+}
+
+/**
+ * Manage notification uri access.
+ * @return boolean
+ */
+function easytransac_notification_access()
+{
+	return true;
+}
+
+/**
+ * EasyTransac notification URL.
+ */
+function easytransac_notification()
+{
+	easytransac__add_transaction($_POST);
+}
+
+/**
+ * Payment method callback: settings form.
+ */
+function easytransac_settings_form($settings = array())
+{
+	$form = array();
+
+	// Merge default settings into the stored settings array.
+	$settings = (array) $settings + easytransac_default_settings();
+
+	$form['api_key'] = array(
+		'#type'		 => 'textfield',
+		'#title'	 => t('EasyTransac API Key'),
+		'#description'	 => t('Your Easytransac API Key'),
+		'#default_value' => $settings['api_key'],
+		'#required'	 => TRUE,
+	);
+
+	$form['3ds'] = array(
+		'#type'		 => 'checkbox',
+		'#title'	 => t('3DSecure transactions only'),
+		'#description'	 => t('Allows only 3DSecure transactions for more safety'),
+		'#default_value' => $settings['3ds'],
+	);
+
+	return $form;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state)
+{
+
+	// Adds Easytransac payment option to the checkout form
+	if (!empty($form['commerce_payment']['payment_method']['#options']))
+	{
+		foreach ($form['commerce_payment']['payment_method']['#options'] as $key => &$value)
+		{
+			list($method_id, $rule_name) = explode('|', $key);
+
+			if ($method_id == 'easytransac')
+			{
+				$variables	 = array(
+					'path'		 => drupal_get_path('module', 'easytransac') . '/images/logo.png',
+					'title'		 => 'EasyTransac',
+					'alt'		 => 'EasyTransac',
+					'attributes'	 => array(
+						'class' => array('easytransac-icon'),
+					),
+				);
+				$value		 = theme('image', $variables) . ' Easytransac';
+
+				$form['commerce_payment']['payment_method']['#attached']['css'][] = drupal_get_path('module', 'easytransac') . '/easytransac.css';
+
+				break;
+			}
+		}
+	}
+}
+
+/**
+ * Payment method callback: redirect form.
+ */
+function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
+{
+	// Errors if the API Key is not configured.
+	if (empty($payment_method['settings']['api_key']))
+	{
+		drupal_set_message(t('Please configure your EasyTransac API Key.'), 'error');
+		return array();
+	}
+
+	$settings = array(
+		'ReturnUrl'	 => url('checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'], array(
+			'absolute' => TRUE)),
+		'payment_method' => $payment_method['instance_id'],
+	);
+
+	return easytransac_order_form($form, $form_state, $order, $payment_method['settings'] + $settings);
+}
+
+/**
+ * Payment method callback: redirect form return validation.
+ */
+function easytransac_redirect_form_validate($order, $payment_method)
+{
+	easytransac__add_transaction($_POST, $order, $payment_method);
+}
+
+/**
+ * Builds an EasyTransac external payment page form from an order object.
+ * @param $order
+ * @param $settings
+ * @return
+ *   A renderable form array.
+ */
+function easytransac_order_form($form, &$form_state, $order, $settings)
+{
+	$wrapper = entity_metadata_wrapper('commerce_order', $order);
+
+	$amount = $wrapper->commerce_order_total->amount->value();
+
+	// Ensure a default value for the payment_method setting.
+	$settings += array('payment_method' => '');
+
+	global $user;
+
+	$customer = commerce_customer_profile_load($order->commerce_customer_billing['und'][0]['profile_id']);
+
+	// Debug
+//	watchdog('easytransac', 'Customer data:!data', array(
+//		'!data' => '<pre>' . check_plain(print_r($customer, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
+
+	$data = array(
+		"Amount"	 => $amount,
+		"ClientIp"	 => ip_address(),
+		"Email"		 => $user->mail,
+		"OrderId"	 => $order->order_id,
+		"Uid"		 => $user->uid,
+		"ReturnUrl"	 => $settings['ReturnUrl'],
+		"3DS"		 => $settings['3ds'] ? 'yes' : 'no',
+		"Firstname"	 => $customer->commerce_customer_address['und'][0]['first_name'],
+		"Lastname"	 => $customer->commerce_customer_address['und'][0]['last_name'],
+		"Address"	 => $customer->commerce_customer_address['und'][0]['thoroughfare'],
+		"ZipCode"	 => $customer->commerce_customer_address['und'][0]['postal_code'],
+		"City"		 => $customer->commerce_customer_address['und'][0]['locality'],
+		"BirthDate"	 => "1995-05-05", // ?? no standard field
+		"Nationality"	 => "FRA", // ?? no standard field
+		"CallingCode"	 => "33", // ?? no standard field
+		"Phone"		 => "0388000000", // ?? no standard field
+	);
+
+	// Debug
+//	watchdog('easytransac', 'Order data dump:!data', array(
+//		'!data' => '<pre>' . check_plain(print_r($order, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
+
+	$data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
+
+	// Debug
+//	watchdog('easytransac', 'Data being sent to ET:!data', array(
+//		'!data' => '<pre>' . check_plain(print_r($data, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
+
+
+	// Call EasyTransac API to initialize a transaction.
+	$curl		 = curl_init();
+	curl_setopt($curl, CURLOPT_HTTPHEADER, array('EASYTRANSAC-API-KEY:' . $settings['api_key']));
+	curl_setopt($curl, CURLOPT_POST, true);
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($curl, CURLOPT_URL, 'https://www.easytransac.com/api/payment/page');
+	curl_setopt($curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1);
+	curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
+	$et_return	 = curl_exec($curl);
+	curl_close($curl);
+	$et_return	 = json_decode($et_return, true);
+
+	// Debug
+//	watchdog('easytransac', 'Data returned from ET:!data', array(
+//		'!data' => '<pre>' . check_plain(print_r($et_return, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
+
+	if (!empty($et_return['Error']))
+	{
+		watchdog('easytransac', t('Error: !message', array('!message' => $et_return['Error'])), array(), WATCHDOG_ERROR);
+		drupal_set_message(t('Error: !message', array('!message' => $et_return['Error'])), 'error');
+		return array();
+	}
+
+
+	// Allow modules to alter parameters of the API request.
+	drupal_alter('easytransac_order_form_data', $data, $order);
+
+	// Post parameters to the external payment page.
+	$form['#action'] = $et_return['Result']['PageUrl'];
+
+	foreach ($data as $name => $value)
+	{
+		if (!empty($value))
+		{
+			$form[$name] = array('#type' => 'hidden', '#value' => $value);
+		}
+	}
+
+	$form['submit'] = array(
+		'#type'	 => 'submit',
+		'#value' => t('Proceed to EasyTransac'),
+	);
+
+	return $form;
+}
+
+/**
+ * Easytransac API key signature.
+ * @param array $params
+ * @param string $apiKey
+ * @return string
+ */
+function easytransac__get_signature($params, $apiKey)
+{
+	$signature = '';
+	if (is_array($params))
+	{
+		ksort($params);
+		foreach ($params as $name => $valeur)
+		{
+			if (strcasecmp($name, 'signature') != 0)
+			{
+				if (is_array($valeur))
+				{
+					ksort($valeur);
+					foreach ($valeur as $v)
+						$signature .= $v . '$';
+				}
+				else
+				{
+					$signature .= $valeur . '$';
+				}
+			}
+		}
+	}
+	else
+	{
+		$signature = $params . '$';
+	}
+
+	$signature .= $apiKey;
+	return sha1($signature);
+}
+
+/**
+ * Check the signature of EasyTransac's incoming data.
+ * @param type $data		ET received data.
+ * @param type $api_key		ET API key.
+ * @return bool			True if the signature is valid.
+ */
+function easytransac__verify_signature($data, $api_key)
+{
+	$signature	 = $data['Signature'];
+	unset($data['Signature']);
+	$calculated	 = easytransac__get_signature($data, $api_key);
+	return $signature === $calculated;
+}
+
+/**
+ * Updates order with a transaction. 
+ * @param array $received_data		Data from ET.
+ * @param object $order			Commerce order object.
+ * @param object $payment_instance	Payment instance object.
+ * @return void
+ */
+function easytransac__add_transaction($received_data, $order = null, $payment_instance = null)
+{
+	// Debug
+//	watchdog('easytransac', 'Customer returned from easytransac with the following POST data:!data', array(
+//		'!data' => '<pre>' . check_plain(print_r($received_data, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
+
+	// First minimal data validation
+	$required_fields = array('RequestId', 'Tid', 'Uid', 'OrderId', 'Status', 'Signature');
+
+	if (empty($received_data))
+	{
+		watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
+		return;
+	}
+
+	foreach ($required_fields as $field_key)
+	{
+		if (empty($received_data[$field_key]))
+		{
+			watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
+			return;
+		}
+	}
+
+
+	// Check signature
+	if (is_null($payment_instance))
+	{
+		$payment_instance = commerce_payment_method_instance_load("easytransac|commerce_payment_easytransac");
+	}
+
+	if (empty($payment_instance))
+	{
+		watchdog('easytransac', 'No payment instance found.', array(), WATCHDOG_ERROR);
+		return;
+	}
+
+	$signature_verified = easytransac__verify_signature($received_data, $payment_instance['settings']['api_key']);
+
+	if (!$signature_verified)
+	{
+
+		watchdog('easytransac', 'Invalid signature of received data.', array(), WATCHDOG_ERROR);
+		return;
+	}
+
+
+	// Retrieve orders
+	if (is_null($order))
+	{
+		$order = commerce_order_load(intval($received_data['OrderId']));
+	}
+
+	if (empty($order))
+	{
+		watchdog('easytransac', 'No order found.', array(), WATCHDOG_ERROR);
+		return;
+	}
+
+
+	$payments = commerce_payment_transaction_load_multiple(array(), array('order_id' => $order->order_id));
+
+	// Verify if the received data has already been processed.
+	foreach ($payments as $payment)
+	{
+		if ($payment->remote_id == $received_data['Tid'])
+		{
+			if ($payment->status != 'pending')
+			{
+				// Transaction already processed
+				watchdog('easytransac', 'Transaction already processed.', array(), WATCHDOG_NOTICE);
+				return;
+			}
+			// Existing transaction will be updated
+			break;
+		}
+	}
+
+	// Verify data consistency between local order and remote data.
+	if ($order->order_id != $received_data['OrderId'])
+	{
+		watchdog('easytransac', 'Order id does not match the remote one.', array(), WATCHDOG_ERROR);
+		return;
+	}
+	elseif ($order->uid != $received_data['Uid'])
+	{
+		watchdog('easytransac', 'Uid does not match the remote one.', array(), WATCHDOG_ERROR);
+		return;
+	}
+
+	// Create a new payment transaction for the order.
+	$transaction			 = commerce_payment_transaction_new('easytransac', $order->order_id);
+	$transaction->instance_id	 = $payment_instance['instance_id'];
+
+	$transaction->remote_id		 = $received_data['Tid'];
+	$transaction->amount		 = commerce_currency_decimal_to_amount($received_data['Amount'], 'EUR');
+	$transaction->currency_code	 = 'EUR';
+
+	$transaction->remote_status = $received_data['Status'];
+
+	$transaction->data['RequestId'] = $received_data['RequestId'];
+
+	switch ($received_data['Status'])
+	{
+		case 'failed':
+			$transaction->status	 = COMMERCE_PAYMENT_STATUS_FAILURE;
+			$transaction->message	 = $received_data['Message'];
+			commerce_order_status_update($order, 'canceled', FALSE, NULL, t('Payment failure.'));
+			break;
+
+		case 'captured':
+			$transaction->status	 = COMMERCE_PAYMENT_STATUS_SUCCESS;
+			$transaction->message	 = $received_data['Message'];
+			break;
+
+		case 'pending':
+			$transaction->status	 = COMMERCE_PAYMENT_STATUS_PENDING;
+			$transaction->message	 = $received_data['Message'];
+			break;
+
+		case 'refunded':
+			// No refunded statuts available, so fallback to failure status
+			$transaction->status	 = COMMERCE_PAYMENT_STATUS_FAILURE;
+			$transaction->message	 = $received_data['Message'];
+			break;
+	}
+
+	// Save the transaction information.
+	commerce_payment_transaction_save($transaction);
+}
