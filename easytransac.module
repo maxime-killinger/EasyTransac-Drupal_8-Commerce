@@ -90,7 +90,7 @@ function easytransac_settings_form($settings = array())
   $form['3ds'] = array(
     '#type' => 'checkbox',
     '#title' => t('3DSecure transactions only'),
-    '#description' => t('Allows only 3DSecure transactions for more safety'),
+    '#description' => t("3D Secure is a secure payment protocol. Its aim is to reduce fraud for merchants and secure customer payments. The customer will be redirected to his bank's site that will ask for additional information."),
     '#default_value' => $settings['3ds'],
   );
 
