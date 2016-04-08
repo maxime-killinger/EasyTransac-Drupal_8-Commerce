@@ -112,8 +112,8 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
           'attributes' => array(
             'class' => array(
               'easytransac-icon',
-            )
-          )
+            ),
+          ),
         );
         $value = theme('image', $variables) . ' Easytransac - pay with your credit card';
 
@@ -154,12 +154,6 @@ function easytransac_redirect_form_validate($order, $payment_method) {
 
 /**
  * Builds an EasyTransac external payment page form from an order object.
- *
- * @param
- *      $order
- * @param
- *      $settings
- * @return array A renderable form array.
  */
 function easytransac_order_form($form, &$form_state, $order, $settings) {
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
@@ -199,9 +193,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   // Call EasyTransac API to initialize a transaction.
   $curl = curl_init();
   $curl_header = 'EASYTRANSAC-API-KEY:' . $settings['api_key'];
-  curl_setopt($curl, CURLOPT_HTTPHEADER, array(
-    $curl_header
-  ));
+  curl_setopt($curl, CURLOPT_HTTPHEADER, array($curl_header));
   curl_setopt($curl, CURLOPT_POST, TRUE);
   curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
   $cur_url = 'https://www.easytransac.com/api/payment/page';
@@ -212,9 +204,9 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   curl_close($curl);
   $et_return = json_decode($et_return, TRUE);
 
-  if (! empty($et_return['Error'])) {
+  if (!empty($et_return['Error'])) {
     $message = t('Error: !message', array(
-      '!message' => $et_return['Error']
+      '!message' => $et_return['Error'],
     ));
     watchdog('easytransac', $message, array(), WATCHDOG_ERROR);
     drupal_set_message($message, 'error');
@@ -228,7 +220,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   $form['#action'] = $et_return['Result']['PageUrl'];
 
   foreach ($data as $name => $value) {
-    if (! empty($value)) {
+    if (!empty($value)) {
       $form[$name] = array(
         '#type' => 'hidden',
         '#value' => $value,
@@ -246,9 +238,10 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 
 /**
  * Easytransac API key signature.
- * 
+ *
  * @param array $params      
- * @param string $api_key      
+ * @param string $api_key 
+ *
  * @return string
  *   API key.
  */
@@ -260,8 +253,9 @@ function easytransac__get_signature($params, $api_key) {
       if (strcasecmp($name, 'signature') != 0) {
         if (is_array($valeur)) {
           ksort($valeur);
-          foreach ($valeur as $v)
+          foreach ($valeur as $v) {
             $signature .= $v . '$';
+	  }
         } else {
           $signature .= $valeur . '$';
         }
@@ -277,12 +271,13 @@ function easytransac__get_signature($params, $api_key) {
 
 /**
  * Check the signature of EasyTransac's incoming data.
- * 
+ *
  * @param type $data
  *      ET received data.
- * @param type $api_key
+ * @param string $api_key
  *      ET API key.
- * @return bool TRUE if the signature is valid.
+ * @return bool
+ *   TRUE if the signature is valid.
  */
 function easytransac__verify_signature($data, $api_key) {
   $signature = $data['Signature'];
@@ -300,7 +295,8 @@ function easytransac__verify_signature($data, $api_key) {
  *      Commerce order object.
  * @param object $payment_instance
  *      Payment instance object.
- * @return void Returns nothing.
+ * @return void
+ *   Returns nothing.
  */
 function easytransac__add_transaction($received_data, $order = NULL, $payment_instance = NULL) {
   // First minimal data validation.
@@ -373,7 +369,8 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   if ($order->order_id != $received_data['OrderId']) {
     watchdog('easytransac', 'Order id does not match the remote one.', array(), WATCHDOG_ERROR);
     return;
-  } elseif ($order->uid != $received_data['Uid']) {
+  }
+  elseif ($order->uid != $received_data['Uid']) {
     watchdog('easytransac', 'Uid does not match the remote one.', array(), WATCHDOG_ERROR);
     return;
   }
