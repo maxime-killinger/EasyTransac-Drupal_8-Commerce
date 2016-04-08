@@ -53,6 +53,7 @@ function easytransac_menu() {
  * Manage notification uri access.
  *
  * @return bool
+ *   TRUE.
  */
 function easytransac_notification_access() {
   return TRUE;
@@ -236,6 +237,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
  * @param array $params
  * @param string $api_key
  * @return string
+ *   Signature.
  */
 function easytransac__get_signature($params, $api_key) {
   $signature = '';
@@ -266,7 +268,7 @@ function easytransac__get_signature($params, $api_key) {
  * @param type $data    ET received data.
  * @param type $api_key    ET API key.
  * @return bool
- *		TRUE if the signature is valid.
+ *   TRUE if the signature is valid.
  */
 function easytransac__verify_signature($data, $api_key) {
   $signature   = $data['Signature'];
@@ -281,11 +283,18 @@ function easytransac__verify_signature($data, $api_key) {
  * @param object $order      Commerce order object.
  * @param object $payment_instance  Payment instance object.
  * @return void
- *		Returns nothing.
+ *   Returns nothing.
  */
 function easytransac__add_transaction($received_data, $order = NULL, $payment_instance = NULL) {
   // First minimal data validation.
-  $required_fields = array('RequestId', 'Tid', 'Uid', 'OrderId', 'Status', 'Signature');
+  $required_fields = array(
+    'RequestId',
+    'Tid',
+    'Uid',
+    'OrderId',
+    'Status',
+    'Signature'
+  );
 
   if (empty($received_data)) {
     watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
@@ -309,15 +318,13 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     return;
   }
 
-  $signature_verified = 
-    easytransac__verify_signature($received_data, $payment_instance['settings']['api_key']);
+  $signature_verified = easytransac__verify_signature($received_data, $payment_instance['settings']['api_key']);
 
   if (!$signature_verified) {
 
     watchdog('easytransac', 'Invalid signature of received data.', array(), WATCHDOG_ERROR);
     return;
   }
-
 
   // Retrieve orders.
   if (is_null($order)) {
@@ -329,15 +336,13 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     return;
   }
 
-
-  $payments = 
-    commerce_payment_transaction_load_multiple(array(), array('order_id' => $order->order_id));
+  $payments = commerce_payment_transaction_load_multiple(array(), array('order_id' => $order->order_id));
 
   // Verify if the received data has already been processed.
   foreach ($payments as $payment) {
     if ($payment->remote_id == $received_data['Tid']) {
       if ($payment->status != 'pending') {
-        // Transaction already processed
+        // Transaction already processed.
         watchdog('easytransac', 'Transaction already processed.', array(), WATCHDOG_NOTICE);
         return;
       }
@@ -350,14 +355,14 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   if ($order->order_id != $received_data['OrderId']) {
     watchdog('easytransac', 'Order id does not match the remote one.', array(), WATCHDOG_ERROR);
     return;
-  } elseif ($order->uid != $received_data['Uid']) {
+  }
+  elseif ($order->uid != $received_data['Uid']) {
     watchdog('easytransac', 'Uid does not match the remote one.', array(), WATCHDOG_ERROR);
     return;
   }
 
   // Create a new payment transaction for the order.
-  $transaction =
-    commerce_payment_transaction_new('easytransac', $order->order_id);
+  $transaction = commerce_payment_transaction_new('easytransac', $order->order_id);
   $transaction->instance_id   = $payment_instance['instance_id'];
 
   $transaction->remote_id = $received_data['Tid'];
