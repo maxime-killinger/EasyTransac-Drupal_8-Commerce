@@ -21,7 +21,7 @@ function easytransac_commerce_payment_method_info()
     'active' => FALSE,
     'terminal' => FALSE,
     'offsite' => TRUE,
-    'offsite_autoredirect' => TRUE
+    'offsite_autoredirect' => TRUE,
   );
   
   return $payment_methods;
@@ -35,7 +35,7 @@ function easytransac_default_settings()
   return array(
     'api_key' => '',
     'currency_code' => 'EUR',
-    '3ds' => TRUE
+    '3ds' => TRUE,
   );
 }
 
@@ -47,7 +47,7 @@ function easytransac_menu()
   $items['easytransac/notification'] = array(
     'page callback' => 'easytransac_notification',
     'type' => MENU_CALLBACK,
-    'access callback' => 'easytransac_notification_access'
+    'access callback' => 'easytransac_notification_access',
   );
   return $items;
 }
@@ -85,7 +85,7 @@ function easytransac_settings_form($settings = array())
     '#title' => t('EasyTransac API Key'),
     '#description' => t('Your Easytransac API Key'),
     '#default_value' => $settings['api_key'],
-    '#required' => TRUE
+    '#required' => TRUE,
   );
 
   $form['3ds'] = array(
@@ -117,7 +117,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state)
           'alt' => 'EasyTransac',
           'attributes' => array(
             'class' => array(
-              'easytransac-icon'
+              'easytransac-icon',
             )
           )
         );
@@ -144,9 +144,9 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
   $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
   $settings = array(
     'ReturnUrl' => url($return_url, array(
-      'absolute' => TRUE
+      'absolute' => TRUE,
     )),
-    'payment_method' => $payment_method['instance_id']
+    'payment_method' => $payment_method['instance_id'],
   );
   $merged_settings = $payment_method['settings'] + $settings;
   return easytransac_order_form($form, $form_state, $order, $merged_settings);
@@ -177,7 +177,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
 
   // Ensure a default value for the payment_method setting.
   $settings += array(
-    'payment_method' => ''
+    'payment_method' => '',
   );
 
   global $user;
@@ -200,7 +200,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
     "BirthDate" => "",
     "Nationality" => "",
     "CallingCode" => "",
-    "Phone" => ""
+    "Phone" => "",
   );
 
   $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
@@ -240,14 +240,14 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
     if (! empty($value)) {
       $form[$name] = array(
         '#type' => 'hidden',
-        '#value' => $value
+        '#value' => $value,
       );
     }
   }
 
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Proceed to EasyTransac')
+    '#value' => t('Proceed to EasyTransac'),
   );
 
   return $form;
@@ -322,7 +322,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     'Uid',
     'OrderId',
     'Status',
-    'Signature'
+    'Signature',
   );
 
   if (empty($received_data)) {
