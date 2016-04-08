@@ -239,8 +239,8 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 /**
  * Easytransac API key signature.
  *
- * @param array $params      
- * @param string $api_key 
+ * @param array $params Data to be signed. 
+ * @param string $api_key API key.
  *
  * @return string
  *   API key.
@@ -255,8 +255,9 @@ function easytransac__get_signature($params, $api_key) {
           ksort($valeur);
           foreach ($valeur as $v) {
             $signature .= $v . '$';
-	  }
-        } else {
+          }
+        }
+        else {
           $signature .= $valeur . '$';
         }
       }
@@ -276,6 +277,7 @@ function easytransac__get_signature($params, $api_key) {
  *      ET received data.
  * @param string $api_key
  *      ET API key.
+ *
  * @return bool
  *   TRUE if the signature is valid.
  */
