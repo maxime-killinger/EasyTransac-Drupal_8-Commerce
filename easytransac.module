@@ -239,7 +239,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 /**
  * Easytransac API key signature.
  *
- * @param array $params Data to be signed. 
+ * @param array $params Data to be signed.
  * @param string $api_key API key.
  *
  * @return string
@@ -262,7 +262,8 @@ function easytransac__get_signature($params, $api_key) {
         }
       }
     }
-  } else {
+  }
+  else {
     $signature = $params . '$';
   }
 
@@ -273,7 +274,7 @@ function easytransac__get_signature($params, $api_key) {
 /**
  * Check the signature of EasyTransac's incoming data.
  *
- * @param type $data
+ * @param array $data
  *      ET received data.
  * @param string $api_key
  *      ET API key.
@@ -297,6 +298,7 @@ function easytransac__verify_signature($data, $api_key) {
  *      Commerce order object.
  * @param object $payment_instance
  *      Payment instance object.
+ *
  * @return void
  *   Returns nothing.
  */
