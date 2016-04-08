@@ -198,9 +198,6 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
 
   $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
 
-  // Debug
-//  watchdog('easytransac', 'Data being sent to ET:!data', array(
-//    '!data' => '<pre>' . check_plain(print_r($data, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
   // Call EasyTransac API to initialize a transaction.
   $curl     = curl_init();
   $curl_header = 'EASYTRANSAC-API-KEY:' . $settings['api_key'];
@@ -214,10 +211,6 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
   $et_return   = curl_exec($curl);
   curl_close($curl);
   $et_return   = json_decode($et_return, true);
-
-  // Debug
-//  watchdog('easytransac', 'Data returned from ET:!data', array(
-//    '!data' => '<pre>' . check_plain(print_r($et_return, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
 
   if (!empty($et_return['Error'])) {
     $message = t('Error: !message', array('!message' => $et_return['Error']));
@@ -301,10 +294,6 @@ function easytransac__verify_signature($data, $api_key)
  */
 function easytransac__add_transaction($received_data, $order = null, $payment_instance = null)
 {
-  // Debug
-//  watchdog('easytransac', 'Customer returned from easytransac with the following POST data:!data', array(
-//    '!data' => '<pre>' . check_plain(print_r($received_data, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
-//    
   // First minimal data validation
   $required_fields = 
     array('RequestId', 'Tid', 'Uid', 'OrderId', 'Status', 'Signature');
