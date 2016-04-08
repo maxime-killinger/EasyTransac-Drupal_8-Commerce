@@ -110,14 +110,14 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state)
 
       if ($method_id == 'easytransac') {
         $variables   = array(
-          'path' => drupal_get_path('module', 'easytransac') . '/images/logo.png',
+          'path' => drupal_get_path('module', 'easytransac') . '/images/logo.jpg',
           'title' => 'EasyTransac',
           'alt' => 'EasyTransac',
           'attributes' => array(
             'class' => array('easytransac-icon'),
           ),
         );
-        $value = theme('image', $variables) . ' Easytransac';
+        $value = theme('image', $variables) . ' Easytransac - pay with your credit card';
 
         $form['commerce_payment']['payment_method']['#attached']['css'][] = 
 		drupal_get_path('module', 'easytransac') . '/easytransac.css';
