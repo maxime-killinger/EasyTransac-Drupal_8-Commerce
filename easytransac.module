@@ -51,6 +51,7 @@ function easytransac_menu() {
 
 /**
  * Manage notification uri access.
+ * 
  * @return boolean
  */
 function easytransac_notification_access() {
@@ -150,6 +151,7 @@ function easytransac_redirect_form_validate($order, $payment_method){
 
 /**
  * Builds an EasyTransac external payment page form from an order object.
+ * 
  * @param $order
  * @param $settings
  * @return
@@ -201,7 +203,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings){
   curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
   $et_return   = curl_exec($curl);
   curl_close($curl);
-  $et_return   = json_decode($et_return, true);
+  $et_return   = json_decode($et_return, TRUE);
 
   if (!empty($et_return['Error'])) {
     $message = t('Error: !message', array('!message' => $et_return['Error']));
@@ -234,10 +236,10 @@ function easytransac_order_form($form, &$form_state, $order, $settings){
 /**
  * Easytransac API key signature.
  * @param array $params
- * @param string $apiKey
+ * @param string $api_key
  * @return string
  */
-function easytransac__get_signature($params, $apiKey){
+function easytransac__get_signature($params, $api_key){
   $signature = '';
   if (is_array($params)) {
     ksort($params);
@@ -257,7 +259,7 @@ function easytransac__get_signature($params, $apiKey){
     $signature = $params . '$';
   }
 
-  $signature .= $apiKey;
+  $signature .= $api_key;
   return sha1($signature);
 }
 
@@ -265,7 +267,7 @@ function easytransac__get_signature($params, $apiKey){
  * Check the signature of EasyTransac's incoming data.
  * @param type $data    ET received data.
  * @param type $api_key    ET API key.
- * @return bool      True if the signature is valid.
+ * @return bool      TRUE if the signature is valid.
  */
 function easytransac__verify_signature($data, $api_key){
   $signature   = $data['Signature'];
@@ -281,7 +283,7 @@ function easytransac__verify_signature($data, $api_key){
  * @param object $payment_instance  Payment instance object.
  * @return void
  */
-function easytransac__add_transaction($received_data, $order = null, $payment_instance = null){
+function easytransac__add_transaction($received_data, $order = NULL, $payment_instance = NULL){
   // First minimal data validation
   $required_fields = 
     array('RequestId', 'Tid', 'Uid', 'OrderId', 'Status', 'Signature');
