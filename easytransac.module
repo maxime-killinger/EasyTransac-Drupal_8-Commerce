@@ -239,8 +239,10 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 /**
  * Easytransac API key signature.
  *
- * @param array $params Data to be signed.
- * @param string $api_key API key.
+ * @param array $params
+ *      Data to be signed.
+ * @param string $api_key
+ *      API key.
  *
  * @return string
  *   API key.
@@ -298,9 +300,6 @@ function easytransac__verify_signature($data, $api_key) {
  *      Commerce order object.
  * @param object $payment_instance
  *      Payment instance object.
- *
- * @return void
- *   Returns nothing.
  */
 function easytransac__add_transaction($received_data, $order = NULL, $payment_instance = NULL) {
   // First minimal data validation.
