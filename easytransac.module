@@ -22,7 +22,7 @@ function easytransac_commerce_payment_method_info() {
     'offsite' => TRUE,
     'offsite_autoredirect' => TRUE,
   );
-  
+
   return $payment_methods;
 }
 
@@ -53,6 +53,7 @@ function easytransac_menu() {
  * Manage notification uri access.
  *
  * @return bool
+ *   TRUE.
  */
 function easytransac_notification_access() {
   return TRUE;
@@ -96,13 +97,13 @@ function easytransac_settings_form($settings = array()) {
  * Implements hook_form_FORM_ID_alter().
  */
 function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
-  
+
   // Adds Easytransac payment option to the checkout form.
-  if (! empty($form['commerce_payment']['payment_method']['#options'])) {
+  if (!empty($form['commerce_payment']['payment_method']['#options'])) {
     foreach ($form['commerce_payment']['payment_method']['#options'] as $key => &$value) {
       $temp = explode('|', $key);
       $method_id = $temp[0];
-      
+
       if ($method_id == 'easytransac') {
         $variables = array(
           'path' => drupal_get_path('module', 'easytransac') . '/images/logo.jpg',
@@ -115,9 +116,9 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
           )
         );
         $value = theme('image', $variables) . ' Easytransac - pay with your credit card';
-        
+
         $form['commerce_payment']['payment_method']['#attached']['css'][] = drupal_get_path('module', 'easytransac') . '/easytransac.css';
-        
+
         break;
       }
     }
@@ -336,7 +337,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
   $signature_verified = easytransac__verify_signature($received_data, $payment_instance['settings']['api_key']);
 
-  if (! $signature_verified) {
+  if (!$signature_verified) {
     watchdog('easytransac', 'Invalid signature of received data.', array(), WATCHDOG_ERROR);
     return;
   }
@@ -352,7 +353,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   }
 
   $payments = commerce_payment_transaction_load_multiple(array(), array(
-    'order_id' => $order->order_id
+    'order_id' => $order->order_id,
   ));
 
   // Verify if the received data has already been processed.
@@ -395,14 +396,17 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
       $transaction->message = $received_data['Message'];
       commerce_order_status_update($order, 'canceled', FALSE, NULL, t('Payment failure.'));
       break;
+
     case 'captured':
       $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
       $transaction->message = $received_data['Message'];
       break;
+
     case 'pending':
       $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
       $transaction->message = $received_data['Message'];
       break;
+
     case 'refunded':
       // No refunded statuts available, so fallback to failure status.
       $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
