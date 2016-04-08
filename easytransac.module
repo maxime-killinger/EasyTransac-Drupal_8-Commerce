@@ -18,7 +18,7 @@ function easytransac_commerce_payment_method_info()
     'short_title' => t('ET Payment'),
     'description' => t('Easytransac Website Payment'),
     'display_title' => t('Easytransac Website Payment'),
-    'active' => TRUE,
+    'active' => FALSE,
     'terminal' => FALSE,
     'offsite' => TRUE,
     'offsite_autoredirect' => TRUE,
@@ -177,10 +177,6 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
   $customer = 
     commerce_customer_profile_load($order->commerce_customer_billing['und'][0]['profile_id']);
 
-  // Debug
-//  watchdog('easytransac', 'Customer data:!data', array(
-//    '!data' => '<pre>' . check_plain(print_r($customer, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
-
   $data = array(
     "Amount" => $amount,
     "ClientIp" => ip_address(),
@@ -199,10 +195,6 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
     "CallingCode" => "",
     "Phone" => "",
   );
-
-  // Debug
-//  watchdog('easytransac', 'Order data dump:!data', array(
-//    '!data' => '<pre>' . check_plain(print_r($order, TRUE)) . '</pre>'), WATCHDOG_NOTICE);
 
   $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
 
