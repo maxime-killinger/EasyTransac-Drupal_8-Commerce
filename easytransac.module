@@ -10,8 +10,8 @@
  */
 function easytransac_commerce_payment_method_info()
 {
-    $payment_methods = array();
-  
+  $payment_methods = array();
+
   $payment_methods['easytransac'] = array(
     'base' => 'easytransac',
     'title' => t('EasyTransac Payment'),
@@ -76,10 +76,10 @@ function easytransac_notification()
 function easytransac_settings_form($settings = array())
 {
   $form = array();
-  
+
   // Merge default settings into the stored settings array.
   $settings = (array) $settings + easytransac_default_settings();
-  
+
   $form['api_key'] = array(
     '#type' => 'textfield',
     '#title' => t('EasyTransac API Key'),
@@ -87,14 +87,14 @@ function easytransac_settings_form($settings = array())
     '#default_value' => $settings['api_key'],
     '#required' => TRUE
   );
-  
+
   $form['3ds'] = array(
     '#type' => 'checkbox',
     '#title' => t('3DSecure transactions only'),
     '#description' => t("3D Secure is a secure payment protocol. Its aim is to reduce fraud for merchants and secure customer payments. The customer will be redirected to his bank's site that will ask for additional information."),
-    '#default_value' => $settings['3ds']
+    '#default_value' => $settings['3ds'],
   );
-  
+
   return $form;
 }
 
@@ -172,18 +172,18 @@ function easytransac_redirect_form_validate($order, $payment_method)
 function easytransac_order_form($form, &$form_state, $order, $settings)
 {
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
-  
+
   $amount = $wrapper->commerce_order_total->amount->value();
-  
+
   // Ensure a default value for the payment_method setting.
   $settings += array(
     'payment_method' => ''
   );
-  
+
   global $user;
-  
+
   $customer = commerce_customer_profile_load($order->commerce_customer_billing[LANGUAGE_NONE][0]['profile_id']);
-  
+
   $data = array(
     "Amount" => $amount,
     "ClientIp" => ip_address(),
@@ -202,9 +202,9 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
     "CallingCode" => "",
     "Phone" => ""
   );
-  
+
   $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
-  
+
   // Call EasyTransac API to initialize a transaction.
   $curl = curl_init();
   $curl_header = 'EASYTRANSAC-API-KEY:' . $settings['api_key'];
@@ -220,7 +220,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
   $et_return = curl_exec($curl);
   curl_close($curl);
   $et_return = json_decode($et_return, TRUE);
-  
+
   if (! empty($et_return['Error'])) {
     $message = t('Error: !message', array(
       '!message' => $et_return['Error']
@@ -229,13 +229,13 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
     drupal_set_message($message, 'error');
     return array();
   }
-  
+
   // Allow modules to alter parameters of the API request.
   drupal_alter('easytransac_order_form_data', $data, $order);
-  
+
   // Post parameters to the external payment page.
   $form['#action'] = $et_return['Result']['PageUrl'];
-  
+
   foreach ($data as $name => $value) {
     if (! empty($value)) {
       $form[$name] = array(
@@ -244,12 +244,12 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
       );
     }
   }
-  
+
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Proceed to EasyTransac')
   );
-  
+
   return $form;
 }
 
@@ -259,6 +259,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
  * @param array $params      
  * @param string $api_key      
  * @return string
+ *   API key.
  */
 function easytransac__get_signature($params, $api_key)
 {
@@ -279,7 +280,7 @@ function easytransac__get_signature($params, $api_key)
   } else {
     $signature = $params . '$';
   }
-  
+
   $signature .= $api_key;
   return sha1($signature);
 }
@@ -323,51 +324,50 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     'Status',
     'Signature'
   );
-  
+
   if (empty($received_data)) {
     watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
     return;
   }
-  
+
   foreach ($required_fields as $field_key) {
     if (empty($received_data[$field_key])) {
       watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
       return;
     }
   }
-  
+
   // Check signature.
   if (is_null($payment_instance)) {
     $payment_instance = commerce_payment_method_instance_load("easytransac|commerce_payment_easytransac");
   }
-  
+
   if (empty($payment_instance)) {
     watchdog('easytransac', 'No payment instance found.', array(), WATCHDOG_ERROR);
     return;
   }
-  
+
   $signature_verified = easytransac__verify_signature($received_data, $payment_instance['settings']['api_key']);
-  
+
   if (! $signature_verified) {
-    
     watchdog('easytransac', 'Invalid signature of received data.', array(), WATCHDOG_ERROR);
     return;
   }
-  
+
   // Retrieve orders.
   if (is_null($order)) {
     $order = commerce_order_load(intval($received_data['OrderId']));
   }
-  
+
   if (empty($order)) {
     watchdog('easytransac', 'No order found.', array(), WATCHDOG_ERROR);
     return;
   }
-  
+
   $payments = commerce_payment_transaction_load_multiple(array(), array(
     'order_id' => $order->order_id
   ));
-  
+
   // Verify if the received data has already been processed.
   foreach ($payments as $payment) {
     if ($payment->remote_id == $received_data['Tid']) {
@@ -380,7 +380,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
       break;
     }
   }
-  
+
   // Verify data consistency between local order and remote data.
   if ($order->order_id != $received_data['OrderId']) {
     watchdog('easytransac', 'Order id does not match the remote one.', array(), WATCHDOG_ERROR);
@@ -389,43 +389,40 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     watchdog('easytransac', 'Uid does not match the remote one.', array(), WATCHDOG_ERROR);
     return;
   }
-  
+
   // Create a new payment transaction for the order.
   $transaction = commerce_payment_transaction_new('easytransac', $order->order_id);
   $transaction->instance_id = $payment_instance['instance_id'];
-  
+
   $transaction->remote_id = $received_data['Tid'];
   $transaction->amount = commerce_currency_decimal_to_amount($received_data['Amount'], 'EUR');
   $transaction->currency_code = 'EUR';
-  
+
   $transaction->remote_status = $received_data['Status'];
-  
+
   $transaction->data['RequestId'] = $received_data['RequestId'];
-  
+
   switch ($received_data['Status']) {
     case 'failed':
       $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
       $transaction->message = $received_data['Message'];
       commerce_order_status_update($order, 'canceled', FALSE, NULL, t('Payment failure.'));
       break;
-    
     case 'captured':
       $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
       $transaction->message = $received_data['Message'];
       break;
-    
     case 'pending':
       $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
       $transaction->message = $received_data['Message'];
       break;
-    
     case 'refunded':
       // No refunded statuts available, so fallback to failure status.
       $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
       $transaction->message = $received_data['Message'];
       break;
   }
-  
+
   // Save the transaction information.
   commerce_payment_transaction_save($transaction);
 }
