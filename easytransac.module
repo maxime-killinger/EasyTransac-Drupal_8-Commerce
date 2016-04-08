@@ -8,7 +8,7 @@
 /**
  * Implements hook_commerce_payment_method_info().
  */
-function easytransac_commerce_payment_method_info(){
+function easytransac_commerce_payment_method_info() {
   $payment_methods = array();
 
   $payment_methods['easytransac'] = array(
@@ -29,7 +29,7 @@ function easytransac_commerce_payment_method_info(){
 /**
  * Returns the default settings for the EasyTransac payment method.
  */
-function easytransac_default_settings(){
+function easytransac_default_settings() {
   return array(
     'api_key' => '',
     'currency_code' => 'EUR',
@@ -40,7 +40,7 @@ function easytransac_default_settings(){
 /**
  * Implements hook_menu().
  */
-function easytransac_menu(){
+function easytransac_menu() {
   $items['easytransac/notification'] = array(
     'page callback' => 'easytransac_notification',
     'type' => MENU_CALLBACK,
@@ -53,14 +53,14 @@ function easytransac_menu(){
  * Manage notification uri access.
  * @return boolean
  */
-function easytransac_notification_access(){
+function easytransac_notification_access() {
   return true;
 }
 
 /**
  * EasyTransac notification URL.
  */
-function easytransac_notification(){
+function easytransac_notification() {
   easytransac__add_transaction($_POST);
 }
 
