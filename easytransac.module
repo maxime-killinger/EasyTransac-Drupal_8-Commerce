@@ -132,8 +132,7 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
     drupal_set_message(t('Please configure your EasyTransac API Key.'), 'error');
     return array();
   }
-  $return_url = 
-    'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
+  $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
   $settings = array(
     'ReturnUrl' => url($return_url, array('absolute' => TRUE)),
     'payment_method' => $payment_method['instance_id'],
@@ -154,7 +153,7 @@ function easytransac_redirect_form_validate($order, $payment_method) {
  * 
  * @param $order
  * @param $settings
- * @return
+ * @return array
  *   A renderable form array.
  */
 function easytransac_order_form($form, &$form_state, $order, $settings) {
@@ -167,8 +166,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 
   global $user;
 
-  $customer = 
-    commerce_customer_profile_load($order->commerce_customer_billing[LANGUAGE_NONE][0]['profile_id']);
+  $customer = commerce_customer_profile_load($order->commerce_customer_billing[LANGUAGE_NONE][0]['profile_id']);
 
   $data = array(
     "Amount" => $amount,
@@ -267,7 +265,8 @@ function easytransac__get_signature($params, $api_key) {
  * Check the signature of EasyTransac's incoming data.
  * @param type $data    ET received data.
  * @param type $api_key    ET API key.
- * @return bool      TRUE if the signature is valid.
+ * @return bool
+ *		TRUE if the signature is valid.
  */
 function easytransac__verify_signature($data, $api_key) {
   $signature   = $data['Signature'];
@@ -282,11 +281,11 @@ function easytransac__verify_signature($data, $api_key) {
  * @param object $order      Commerce order object.
  * @param object $payment_instance  Payment instance object.
  * @return void
+ *		Returns nothing.
  */
 function easytransac__add_transaction($received_data, $order = NULL, $payment_instance = NULL) {
   // First minimal data validation.
-  $required_fields = 
-    array('RequestId', 'Tid', 'Uid', 'OrderId', 'Status', 'Signature');
+  $required_fields = array('RequestId', 'Tid', 'Uid', 'OrderId', 'Status', 'Signature');
 
   if (empty($received_data)) {
     watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
@@ -300,11 +299,9 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     }
   }
 
-
   // Check signature.
   if (is_null($payment_instance)) {
-    $payment_instance = 
-      commerce_payment_method_instance_load("easytransac|commerce_payment_easytransac");
+    $payment_instance = commerce_payment_method_instance_load("easytransac|commerce_payment_easytransac");
   }
 
   if (empty($payment_instance)) {
@@ -364,8 +361,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   $transaction->instance_id   = $payment_instance['instance_id'];
 
   $transaction->remote_id = $received_data['Tid'];
-  $transaction->amount = 
-    commerce_currency_decimal_to_amount($received_data['Amount'], 'EUR');
+  $transaction->amount = commerce_currency_decimal_to_amount($received_data['Amount'], 'EUR');
   $transaction->currency_code   = 'EUR';
 
   $transaction->remote_status = $received_data['Status'];
