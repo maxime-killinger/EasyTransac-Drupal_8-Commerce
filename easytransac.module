@@ -8,8 +8,7 @@
 /**
  * Implements hook_commerce_payment_method_info().
  */
-function easytransac_commerce_payment_method_info()
-{
+function easytransac_commerce_payment_method_info(){
   $payment_methods = array();
 
   $payment_methods['easytransac'] = array(
@@ -30,8 +29,7 @@ function easytransac_commerce_payment_method_info()
 /**
  * Returns the default settings for the EasyTransac payment method.
  */
-function easytransac_default_settings()
-{
+function easytransac_default_settings(){
   return array(
     'api_key' => '',
     'currency_code' => 'EUR',
@@ -42,8 +40,7 @@ function easytransac_default_settings()
 /**
  * Implements hook_menu().
  */
-function easytransac_menu()
-{
+function easytransac_menu(){
   $items['easytransac/notification'] = array(
     'page callback' => 'easytransac_notification',
     'type' => MENU_CALLBACK,
@@ -56,24 +53,21 @@ function easytransac_menu()
  * Manage notification uri access.
  * @return boolean
  */
-function easytransac_notification_access()
-{
+function easytransac_notification_access(){
   return true;
 }
 
 /**
  * EasyTransac notification URL.
  */
-function easytransac_notification()
-{
+function easytransac_notification(){
   easytransac__add_transaction($_POST);
 }
 
 /**
  * Payment method callback: settings form.
  */
-function easytransac_settings_form($settings = array())
-{
+function easytransac_settings_form($settings = array()){
   $form = array();
 
   // Merge default settings into the stored settings array.
@@ -100,8 +94,7 @@ function easytransac_settings_form($settings = array())
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state)
-{
+function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state){
 
   // Adds Easytransac payment option to the checkout form
   if (!empty($form['commerce_payment']['payment_method']['#options'])) {
@@ -132,8 +125,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state)
 /**
  * Payment method callback: redirect form.
  */
-function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
-{
+function easytransac_redirect_form($form, &$form_state, $order, $payment_method){
   // Errors if the API Key is not configured.
   if (empty($payment_method['settings']['api_key'])) {
     drupal_set_message(t('Please configure your EasyTransac API Key.'), 'error');
@@ -152,8 +144,7 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
 /**
  * Payment method callback: redirect form return validation.
  */
-function easytransac_redirect_form_validate($order, $payment_method)
-{
+function easytransac_redirect_form_validate($order, $payment_method){
   easytransac__add_transaction($_POST, $order, $payment_method);
 }
 
@@ -164,8 +155,7 @@ function easytransac_redirect_form_validate($order, $payment_method)
  * @return
  *   A renderable form array.
  */
-function easytransac_order_form($form, &$form_state, $order, $settings)
-{
+function easytransac_order_form($form, &$form_state, $order, $settings){
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
 
   $amount = $wrapper->commerce_order_total->amount->value();
@@ -247,8 +237,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
  * @param string $apiKey
  * @return string
  */
-function easytransac__get_signature($params, $apiKey)
-{
+function easytransac__get_signature($params, $apiKey){
   $signature = '';
   if (is_array($params)) {
     ksort($params);
@@ -278,8 +267,7 @@ function easytransac__get_signature($params, $apiKey)
  * @param type $api_key    ET API key.
  * @return bool      True if the signature is valid.
  */
-function easytransac__verify_signature($data, $api_key)
-{
+function easytransac__verify_signature($data, $api_key){
   $signature   = $data['Signature'];
   unset($data['Signature']);
   $calculated   = easytransac__get_signature($data, $api_key);
@@ -293,8 +281,7 @@ function easytransac__verify_signature($data, $api_key)
  * @param object $payment_instance  Payment instance object.
  * @return void
  */
-function easytransac__add_transaction($received_data, $order = null, $payment_instance = null)
-{
+function easytransac__add_transaction($received_data, $order = null, $payment_instance = null){
   // First minimal data validation
   $required_fields = 
     array('RequestId', 'Tid', 'Uid', 'OrderId', 'Status', 'Signature');
