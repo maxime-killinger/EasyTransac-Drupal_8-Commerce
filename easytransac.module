@@ -106,7 +106,8 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state)
   // Adds Easytransac payment option to the checkout form
   if (!empty($form['commerce_payment']['payment_method']['#options'])) {
     foreach ($form['commerce_payment']['payment_method']['#options'] as $key => &$value) {
-      list($method_id, $rule_name) = explode('|', $key);
+      $temp = explode('|', $key);
+      $method_id = $temp[0];
 
       if ($method_id == 'easytransac') {
         $variables   = array(
@@ -175,7 +176,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
   global $user;
 
   $customer = 
-    commerce_customer_profile_load($order->commerce_customer_billing['und'][0]['profile_id']);
+    commerce_customer_profile_load($order->commerce_customer_billing[LANGUAGE_NONE][0]['profile_id']);
 
   $data = array(
     "Amount" => $amount,
@@ -185,11 +186,11 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
     "Uid" => $user->uid,
     "ReturnUrl" => $settings['ReturnUrl'],
     "3DS" => $settings['3ds'] ? 'yes' : 'no',
-    "Firstname" => $customer->commerce_customer_address['und'][0]['first_name'],
-    "Lastname" => $customer->commerce_customer_address['und'][0]['last_name'],
-    "Address" => $customer->commerce_customer_address['und'][0]['thoroughfare'],
-    "ZipCode" => $customer->commerce_customer_address['und'][0]['postal_code'],
-    "City" => $customer->commerce_customer_address['und'][0]['locality'],
+    "Firstname" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['first_name'],
+    "Lastname" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['last_name'],
+    "Address" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['thoroughfare'],
+    "ZipCode" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['postal_code'],
+    "City" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['locality'],
     "BirthDate" => "",
     "Nationality" => "",
     "CallingCode" => "",
