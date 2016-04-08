@@ -17,7 +17,7 @@ function easytransac_commerce_payment_method_info() {
     'short_title' => t('ET Payment'),
     'description' => t('Easytransac Website Payment'),
     'display_title' => t('Easytransac Website Payment'),
-    'active' => FALSE,
+    'active' => TRUE,
     'terminal' => FALSE,
     'offsite' => TRUE,
     'offsite_autoredirect' => TRUE,
@@ -138,6 +138,7 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
   $settings = array(
     'ReturnUrl' => url($return_url, array(
       'absolute' => TRUE,
+      'https' => TRUE,
     )),
     'payment_method' => $payment_method['instance_id'],
   );
