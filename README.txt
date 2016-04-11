@@ -7,6 +7,11 @@ check out via EasyTransac's payment service.
 REQUIREMENTS
 ------------
 
+This module requires the following PHP specifications:
+
+ * cURL
+ * OpenSSL version >= 1.0.1
+
 This module requires the following modules:
 
  * Drupal commerce (https://www.drupal.org/project/commerce)
