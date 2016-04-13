@@ -150,7 +150,9 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
  * Payment method callback: redirect form return validation.
  */
 function easytransac_redirect_form_validate($order, $payment_method) {
-  easytransac__add_transaction($_POST, $order, $payment_method);
+  if(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    easytransac__add_transaction($_POST, $order, $payment_method);
+  }
 }
 
 /**
@@ -188,7 +190,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "CallingCode" => "",
     "Phone" => "",
   );
-
+  
   $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
 
   // Call EasyTransac API to initialize a transaction.
@@ -314,13 +316,13 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   );
 
   if (empty($received_data)) {
-    watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
+    watchdog('easytransac', 'Invalid data received: empty data packet.', array(), WATCHDOG_ERROR);
     return;
   }
 
   foreach ($required_fields as $field_key) {
     if (empty($received_data[$field_key])) {
-      watchdog('easytransac', 'Invalid data received.', array(), WATCHDOG_ERROR);
+      watchdog('easytransac', 'Invalid data received: missing required field ['.$field_key.']', array(), WATCHDOG_ERROR);
       return;
     }
   }
@@ -345,6 +347,10 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   // Retrieve orders.
   if (is_null($order)) {
     $order = commerce_order_load(intval($received_data['OrderId']));
+    if(!$order) {
+      watchdog('easytransac', 'Unknown order ID received.', array(), WATCHDOG_ERROR);
+      return; 
+    }
   }
 
   if (empty($order)) {
@@ -401,6 +407,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     case 'captured':
       $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
       $transaction->message = $received_data['Message'];
+      commerce_order_status_update($order, 'completed');
       break;
 
     case 'pending':
