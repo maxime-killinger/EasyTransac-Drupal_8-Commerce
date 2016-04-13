@@ -425,4 +425,4 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
   // Save the transaction information.
   commerce_payment_transaction_save($transaction);
-  }
+}
