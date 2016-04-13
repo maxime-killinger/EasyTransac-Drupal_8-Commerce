@@ -322,7 +322,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
   foreach ($required_fields as $field_key) {
     if (empty($received_data[$field_key])) {
-      watchdog('easytransac', 'Invalid data received: missing required field [' . $field_key . ']', array(), WATCHDOG_ERROR);
+      watchdog('easytransac', 'Invalid data received: missing required field', array(), WATCHDOG_ERROR);
       return;
     }
   }
