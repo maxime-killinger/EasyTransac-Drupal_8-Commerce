@@ -83,6 +83,13 @@ function easytransac_settings_form($settings = array()) {
     '#required' => TRUE,
   );
 
+  $form['multiple_payments'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Allow payments in 3 times'),
+    '#description' => t("Option available on demand. Available for payments starting at 100 EUR."),
+    '#default_value' => $settings['multiple_payments'],
+  );
+
   $form['3ds'] = array(
     '#type' => 'checkbox',
     '#title' => t('3DSecure transactions only'),
@@ -126,6 +133,67 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
 }
 
 /**
+ * Implements CALLBACK_commerce_payment_method_submit_form() to add the multiple payment options.
+ */
+function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
+
+  if ($payment_method['settings']['multiple_payments']) {
+
+    // Order amount.
+    $wrapper = entity_metadata_wrapper('commerce_order', $order);
+    $amount = $wrapper->commerce_order_total->amount->value();
+    $down_payments = easytransac_down_payment($amount, TRUE);
+
+    // Adds multiple payments opt in.
+    $form['multiple_payments'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Paiement en 3 fois'),
+    );
+    $form['multiple_payments_rates'] =  array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array(
+          'easytransac-multiple-payments-rates',
+        ),
+      ),
+    );
+    $form['multiple_payments_rates']['info'] =  array(
+      '#markup' => t('Paiement d\'un premier acompte de @first suivi de deux mensualités de @second.', $down_payments),
+    );
+  }
+  return $form;
+}
+
+/**
+ * Calculates the multiple payments.
+ * @param int $amount
+ *   Amount in cents.
+ * @param bool $format
+ *   Enables amount formatting.
+ * @return array
+ *   Each payment's amount.
+ */
+function easytransac_down_payment($amount, $format = FALSE) {
+  $downPayment = (int) floor($amount / 3);
+  $first = $downPayment + ($amount%3);
+  $second = $downPayment;
+  $third = $downPayment;
+  if ($format) {
+    $first = commerce_currency_format($first, 'EUR');
+    $second = commerce_currency_format($second, 'EUR');
+    $third = commerce_currency_format($third, 'EUR');
+  }
+  return array('@first' => $first, '@second' => $second, '@third' => $third);
+}
+
+/**
+ * Implements CALLBACK_commerce_payment_method_submit_form_submit() to add the multiple payment options.
+ */
+function easytransac_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
+    $_SESSION['easytransac_multiple_payments'] = isset($pane_values['multiple_payments']) ? $pane_values['multiple_payments'] : 0;
+}
+
+/**
  * Payment method callback: redirect form.
  */
 function easytransac_redirect_form($form, &$form_state, $order, $payment_method) {
@@ -159,8 +227,9 @@ function easytransac_redirect_form_validate($order, $payment_method) {
  * Builds an EasyTransac external payment page form from an order object.
  */
 function easytransac_order_form($form, &$form_state, $order, $settings) {
-  $wrapper = entity_metadata_wrapper('commerce_order', $order);
 
+  // Order amount.
+  $wrapper = entity_metadata_wrapper('commerce_order', $order);
   $amount = $wrapper->commerce_order_total->amount->value();
 
   // Ensure a default value for the payment_method setting.
@@ -172,6 +241,9 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 
   $customer = commerce_customer_profile_load($order->commerce_customer_billing[LANGUAGE_NONE][0]['profile_id']);
 
+  // Multiple payment was opted in plus multiple payments must be enabled.
+  $multiple_payments = isset($_SESSION['easytransac_multiple_payments']) ? ($_SESSION['easytransac_multiple_payments'] && $settings['multiple_payments']) : 0;
+
   $data = array(
     "Amount" => $amount,
     "ClientIp" => ip_address(),
@@ -180,6 +252,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "Uid" => $user->uid,
     "ReturnUrl" => $settings['ReturnUrl'],
     "3DS" => $settings['3ds'] ? 'yes' : 'no',
+    "MultiplePayments" => $multiple_payments ? 'yes' : 'no',
     "Firstname" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['first_name'],
     "Lastname" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['last_name'],
     "Address" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['thoroughfare'],
@@ -190,6 +263,11 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "CallingCode" => "",
     "Phone" => "",
   );
+
+  if($multiple_payments) {
+    $down_payments = easytransac_down_payment($amount);
+    $data['DownPayment'] = $down_payments['@first'];
+  }
 
   $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
 
@@ -397,6 +475,8 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
   $transaction->data['RequestId'] = $received_data['RequestId'];
 
+  $is_multiple_payments = isset($received_data['MultiplePayments']) && $received_data['MultiplePayments'] === 'yes';
+
   switch ($received_data['Status']) {
     case 'failed':
       $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
@@ -407,7 +487,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
     case 'captured':
       $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
-      $transaction->message = $received_data['Message'];
+      $transaction->message = $received_data['Message'] . ($is_multiple_payments ? ' 1/3' : '');
       commerce_order_status_update($order, 'completed');
       break;
 
