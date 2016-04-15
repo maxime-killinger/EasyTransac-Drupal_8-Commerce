@@ -198,7 +198,7 @@ function easytransac__down_payment($amount, $format = FALSE) {
 /**
  * Order amount helper function.
  *
- * @param stdClass $order
+ * @param object $order
  *   Commerce Order object.
  *
  * @return int
@@ -212,7 +212,7 @@ function easytransac__order_amount(stdClass $order) {
 /**
  * Checks if an order can apply to multiple payments.
  *
- * @param stdClass $order
+ * @param object $order
  *   Commerce Order object.
  *
  * @return bool
