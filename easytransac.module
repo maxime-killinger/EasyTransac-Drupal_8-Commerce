@@ -133,7 +133,8 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
 }
 
 /**
- * Implements CALLBACK_commerce_payment_method_submit_form() to add the multiple payment options.
+ * Implements CALLBACK_commerce_payment_method_submit_form() to add the multiple
+ * payment options.
  */
 function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
 
@@ -149,7 +150,7 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
       '#type' => 'checkbox',
       '#title' => t('Paiement en 3 fois'),
     );
-    $form['multiple_payments_rates'] =  array(
+    $form['multiple_payments_rates'] = array(
       '#type' => 'container',
       '#attributes' => array(
         'class' => array(
@@ -157,8 +158,8 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
         ),
       ),
     );
-    $form['multiple_payments_rates']['info'] =  array(
-      '#markup' => t('Paiement d\'un premier acompte de @first suivi de deux mensualités de @second.', $down_payments),
+    $form['multiple_payments_rates']['info'] = array(
+      '#markup' => t("Paiement d'un premier acompte de @first suivi de deux mensualités de @second.", $down_payments),
     );
   }
   return $form;
@@ -166,18 +167,20 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
 
 /**
  * Calculates the multiple payments.
+ *
  * @param int $amount
  *   Amount in cents.
  * @param bool $format
  *   Enables amount formatting.
+ *
  * @return array
  *   Each payment's amount.
  */
 function easytransac_down_payment($amount, $format = FALSE) {
-  $downPayment = (int) floor($amount / 3);
-  $first = $downPayment + ($amount%3);
-  $second = $downPayment;
-  $third = $downPayment;
+  $down_payment = (int) floor($amount / 3);
+  $first = $down_payment + ($amount % 3);
+  $second = $down_payment;
+  $third = $down_payment;
   if ($format) {
     $first = commerce_currency_format($first, 'EUR');
     $second = commerce_currency_format($second, 'EUR');
@@ -187,10 +190,11 @@ function easytransac_down_payment($amount, $format = FALSE) {
 }
 
 /**
- * Implements CALLBACK_commerce_payment_method_submit_form_submit() to add the multiple payment options.
+ * Implements CALLBACK_commerce_payment_method_submit_form_submit() to add the 
+ * multiple payment options.
  */
 function easytransac_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
-    $_SESSION['easytransac_multiple_payments'] = isset($pane_values['multiple_payments']) ? $pane_values['multiple_payments'] : 0;
+  $_SESSION['easytransac_multiple_payments'] = isset($pane_values['multiple_payments']) ? $pane_values['multiple_payments'] : 0;
 }
 
 /**
@@ -264,7 +268,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "Phone" => "",
   );
 
-  if($multiple_payments) {
+  if ($multiple_payments) {
     $down_payments = easytransac_down_payment($amount);
     $data['DownPayment'] = $down_payments['@first'];
   }
