@@ -80,15 +80,15 @@ function easytransac_settings_form($settings = array()) {
   $requirements_message = '';
 
   // Requirements.
-  $openssl_version_supported = OPENSSL_VERSION_NUMBER >=  0x10001000;
+  $openssl_version_supported = OPENSSL_VERSION_NUMBER >= 0x10001000;
   $curl_activated = function_exists('curl_version');
 
-  if(!$openssl_version_supported){
-    drupal_set_message('EasyTransac: ' . t('OpenSSL version not supported') . ' "' . OPENSSL_VERSION_TEXT . '" < 1.0.1', 'error');
+  if (!$openssl_version_supported) {
+    drupal_set_message(t('EasyTransac: OpenSSL version not supported') . ' "' . OPENSSL_VERSION_TEXT . '" < 1.0.1', 'error');
   }
 
-  if(!$curl_activated){
-    drupal_set_message('EasyTransac: ' . t('PHP cURL extension missing'), 'error');
+  if (!$curl_activated) {
+    drupal_set_message(t('EasyTransac: PHP cURL extension missing'), 'error');
   }
 
   $form['api_key'] = array(
