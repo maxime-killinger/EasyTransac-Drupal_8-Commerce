@@ -144,8 +144,7 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
   if ($payment_method['settings']['multiple_payments']) {
 
     // Order amount.
-    $wrapper = entity_metadata_wrapper('commerce_order', $order);
-    $amount = $wrapper->commerce_order_total->amount->value();
+    $amount = easytransac__order_amount($order);
     $down_payments = easytransac__down_payment($amount, TRUE);
 
     // Adds multiple payments opt in.
@@ -193,12 +192,28 @@ function easytransac__down_payment($amount, $format = FALSE) {
 }
 
 /**
+ * Order amount helper function.
+ *
+ * @param StdClass $order
+ *   Commrder Order object.
+ *
+ * @return int
+ *   Order amount.
+ */
+function easytransac__order_amount($order) {
+  $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  return (int)$wrapper->commerce_order_total->amount->value();
+}
+
+/**
  * Implements CALLBACK_commerce_payment_method_submit_form_submit().
  *
  * Checks if the multiple payment option has been chosen.
  */
 function easytransac_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
-  $_SESSION['easytransac_multiple_payments'] = isset($pane_values['multiple_payments']) ? $pane_values['multiple_payments'] : 0;
+  if(easytransac__order_amount($order) >= 10000) {
+    $_SESSION['easytransac_multiple_payments'] = isset($pane_values['multiple_payments']) ? $pane_values['multiple_payments'] : 0;
+  }
 }
 
 /**
@@ -237,8 +252,7 @@ function easytransac_redirect_form_validate($order, $payment_method) {
 function easytransac_order_form($form, &$form_state, $order, $settings) {
 
   // Order amount.
-  $wrapper = entity_metadata_wrapper('commerce_order', $order);
-  $amount = $wrapper->commerce_order_total->amount->value();
+  $amount = easytransac__order_amount($order);
 
   // Ensure a default value for the payment_method setting.
   $settings += array(
