@@ -77,14 +77,12 @@ function easytransac_settings_form($settings = array()) {
   // Merge default settings into the stored settings array.
   $settings = (array) $settings + easytransac_default_settings();
 
-  $requirements_message = '';
-
   // Requirements.
   $openssl_version_supported = OPENSSL_VERSION_NUMBER >= 0x10001000;
   $curl_activated = function_exists('curl_version');
 
   if (!$openssl_version_supported) {
-    drupal_set_message(t('EasyTransac: OpenSSL version not supported') . ' "' . OPENSSL_VERSION_TEXT . '" < 1.0.1', 'error');
+    drupal_set_message(t('EasyTransac: OpenSSL version not supported "@version" < 1.0.1', array('@version' => OPENSSL_VERSION_TEXT)), 'error');
   }
 
   if (!$curl_activated) {
