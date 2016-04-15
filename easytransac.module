@@ -63,7 +63,7 @@ function easytransac_notification_access() {
  * EasyTransac notification URL.
  */
 function easytransac_notification() {
-	easytransac__add_transaction($_POST);
+  easytransac__add_transaction($_POST);
 }
 
 /**
@@ -399,7 +399,6 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     'Signature',
   );
 
-    watchdog('easytransac', '$received_data: '. var_export($received_data, true), array(), WATCHDOG_ERROR);
   if (empty($received_data)) {
     watchdog('easytransac', 'Invalid data received: empty data packet.', array(), WATCHDOG_ERROR);
     return;
