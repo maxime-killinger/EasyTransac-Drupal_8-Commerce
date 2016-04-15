@@ -63,7 +63,9 @@ function easytransac_notification_access() {
  * EasyTransac notification URL.
  */
 function easytransac_notification() {
-  easytransac__add_transaction($_POST);
+  if(!empty($_POST)) {
+    easytransac__add_transaction($_POST);
+  }
 }
 
 /**
@@ -144,7 +146,7 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
     // Order amount.
     $wrapper = entity_metadata_wrapper('commerce_order', $order);
     $amount = $wrapper->commerce_order_total->amount->value();
-    $down_payments = easytransac_down_payment($amount, TRUE);
+    $down_payments = easytransac__down_payment($amount, TRUE);
 
     // Adds multiple payments opt in.
     $form['multiple_payments'] = array(
@@ -177,7 +179,7 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
  * @return array
  *   Each payment's amount.
  */
-function easytransac_down_payment($amount, $format = FALSE) {
+function easytransac__down_payment($amount, $format = FALSE) {
   $down_payment = (int) floor($amount / 3);
   $first = $down_payment + ($amount % 3);
   $second = $down_payment;
@@ -271,7 +273,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   );
 
   if ($multiple_payments) {
-    $down_payments = easytransac_down_payment($amount);
+    $down_payments = easytransac__down_payment($amount);
     $data['DownPayment'] = $down_payments['@first'];
   }
 
