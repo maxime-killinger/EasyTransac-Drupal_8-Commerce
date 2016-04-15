@@ -63,7 +63,7 @@ function easytransac_notification_access() {
  * EasyTransac notification URL.
  */
 function easytransac_notification() {
-  if(!empty($_POST)) {
+  if (!empty($_POST)) {
     easytransac__add_transaction($_POST);
   }
 }
