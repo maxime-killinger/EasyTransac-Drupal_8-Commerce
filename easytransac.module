@@ -126,7 +126,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
             ),
           ),
         );
-        $value = theme('image', $variables) . t(' Easytransac - payez avec votre carte de crédit');
+        $value = theme('image', $variables) . ' ' . t('Easytransac - payez avec votre carte de crédit');
 
         $form['commerce_payment']['payment_method']['#attached']['css'][] = drupal_get_path('module', 'easytransac') . '/easytransac.css';
 
