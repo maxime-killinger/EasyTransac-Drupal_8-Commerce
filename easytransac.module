@@ -194,7 +194,7 @@ function easytransac__down_payment($amount, $format = FALSE) {
 /**
  * Order amount helper function.
  *
- * @param StdClass $order
+ * @param stdClass $order
  *   Commrder Order object.
  *
  * @return int
