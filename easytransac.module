@@ -134,6 +134,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
 
 /**
  * Implements CALLBACK_commerce_payment_method_submit_form().
+ *
  * Adds the multiple payment option.
  */
 function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
@@ -191,6 +192,7 @@ function easytransac_down_payment($amount, $format = FALSE) {
 
 /**
  * Implements CALLBACK_commerce_payment_method_submit_form_submit().
+ *
  * Checks if the multiple payment option has been chosen.
  */
 function easytransac_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
