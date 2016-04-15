@@ -63,7 +63,7 @@ function easytransac_notification_access() {
  * EasyTransac notification URL.
  */
 function easytransac_notification() {
-  easytransac__add_transaction($_POST);
+	easytransac__add_transaction($_POST);
 }
 
 /**
@@ -399,6 +399,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     'Signature',
   );
 
+    watchdog('easytransac', '$received_data: '. var_export($received_data, true), array(), WATCHDOG_ERROR);
   if (empty($received_data)) {
     watchdog('easytransac', 'Invalid data received: empty data packet.', array(), WATCHDOG_ERROR);
     return;
@@ -446,16 +447,21 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     'order_id' => $order->order_id,
   ));
 
+  $count_succeeded_payments = 0;
+
   // Verify if the received data has already been processed.
   foreach ($payments as $payment) {
     if ($payment->remote_id == $received_data['Tid']) {
-      if ($payment->status != 'pending') {
+      if ($payment->status != COMMERCE_PAYMENT_STATUS_PENDING) {
         // Transaction already processed.
         watchdog('easytransac', 'Transaction already processed.', array(), WATCHDOG_NOTICE);
         return;
       }
       // Existing transaction will be updated.
       break;
+    }
+    elseif ($payment->status == COMMERCE_PAYMENT_STATUS_SUCCESS) {
+      $count_succeeded_payments++;
     }
   }
 
@@ -493,7 +499,9 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
     case 'captured':
       $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
-      $transaction->message = $received_data['Message'] . ($is_multiple_payments ? ' 1/3' : '');
+      $multiple_payments_info = ($is_multiple_payments ? (' Payment ' . ($count_succeeded_payments + 1) . ' of 3.') : '');
+      $test_info = (isset($received_data['Test']) && $received_data['Test'] === 'yes') ? '[TEST] - ' : '';
+      $transaction->message = $test_info . $received_data['Message'] . '.' . $multiple_payments_info;
       commerce_order_status_update($order, 'completed');
       break;
 
