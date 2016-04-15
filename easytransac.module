@@ -200,9 +200,9 @@ function easytransac__down_payment($amount, $format = FALSE) {
  * @return int
  *   Order amount.
  */
-function easytransac__order_amount($order) {
+function easytransac__order_amount(stdClass $order) {
   $wrapper = entity_metadata_wrapper('commerce_order', $order);
-  return (int)$wrapper->commerce_order_total->amount->value();
+  return (int) $wrapper->commerce_order_total->amount->value();
 }
 
 /**
@@ -211,7 +211,7 @@ function easytransac__order_amount($order) {
  * Checks if the multiple payment option has been chosen.
  */
 function easytransac_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
-  if(easytransac__order_amount($order) >= 10000) {
+  if (easytransac__order_amount($order) >= 10000) {
     $_SESSION['easytransac_multiple_payments'] = isset($pane_values['multiple_payments']) ? $pane_values['multiple_payments'] : 0;
   }
 }
