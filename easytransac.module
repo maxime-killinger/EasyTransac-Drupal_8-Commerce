@@ -77,6 +77,20 @@ function easytransac_settings_form($settings = array()) {
   // Merge default settings into the stored settings array.
   $settings = (array) $settings + easytransac_default_settings();
 
+  $requirements_message = '';
+
+  // Requirements.
+  $openssl_version_supported = OPENSSL_VERSION_NUMBER >=  0x10001000;
+  $curl_activated = function_exists('curl_version');
+
+  if(!$openssl_version_supported){
+    drupal_set_message('EasyTransac: ' . t('OpenSSL version not supported') . ' "' . OPENSSL_VERSION_TEXT . '" < 1.0.1', 'error');
+  }
+
+  if(!$curl_activated){
+    drupal_set_message('EasyTransac: ' . t('PHP cURL extension missing'), 'error');
+  }
+
   $form['api_key'] = array(
     '#type' => 'textfield',
     '#title' => t('EasyTransac API Key'),
@@ -301,6 +315,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "Nationality" => "",
     "CallingCode" => "",
     "Phone" => "",
+    "UserAgent" => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
   );
 
   if ($multiple_payments) {
