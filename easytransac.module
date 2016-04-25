@@ -255,8 +255,14 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
     return array();
   }
   $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
+  $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
+
   $settings = array(
     'ReturnUrl' => url($return_url, array(
+      'absolute' => TRUE,
+      'https' => TRUE,
+    )),
+    'CancelUrl' => url($cancel_url, array(
       'absolute' => TRUE,
       'https' => TRUE,
     )),
@@ -302,6 +308,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "OrderId" => $order->order_id,
     "Uid" => $user->uid,
     "ReturnUrl" => $settings['ReturnUrl'],
+    "CancelUrl" => $settings['CancelUrl'],
     "3DS" => $settings['3ds'] ? 'yes' : 'no',
     "MultiplePayments" => $multiple_payments ? 'yes' : 'no',
     "Firstname" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['first_name'],
