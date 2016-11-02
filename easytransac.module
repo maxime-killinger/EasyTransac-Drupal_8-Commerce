@@ -339,7 +339,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
   $cur_url = 'https://www.easytransac.com/api/payment/page';
   curl_setopt($curl, CURLOPT_URL, $cur_url);
-  //TLSv 1.1 (5) if missing constant TLSv1 (1).
+  // TLSv 1.1 (5) if missing constant TLSv1 (1).
   $ssl_version = defined('CURL_SSLVERSION_TLSv1') ? CURL_SSLVERSION_TLSv1 : 5;
   curl_setopt($curl, CURLOPT_SSLVERSION, $ssl_version);
   curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
