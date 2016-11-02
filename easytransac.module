@@ -301,10 +301,11 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   // Multiple payment was opted in plus multiple payments must be enabled.
   $multiple_payments = isset($_SESSION['easytransac_multiple_payments']) ? ($_SESSION['easytransac_multiple_payments'] && $settings['multiple_payments']) : 0;
 
+  // Order mail if anonymous.
   $data = array(
     "Amount" => $amount,
     "ClientIp" => ip_address(),
-    "Email" => ! empty($user->mail) ? $user->mail : $order->mail,// order mail if anonymous
+    "Email" => !empty($user->mail) ? $user->mail : $order->mail,
     "OrderId" => $order->order_id,
     "Uid" => $user->uid,
     "ReturnUrl" => $settings['ReturnUrl'],
@@ -338,7 +339,8 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
   $cur_url = 'https://www.easytransac.com/api/payment/page';
   curl_setopt($curl, CURLOPT_URL, $cur_url);
-  $ssl_version = defined('CURL_SSLVERSION_TLSv1') ? CURL_SSLVERSION_TLSv1 : 5;//TLSv 1.1 (5) if missing constant because TLSv1 (1) won't work on certain systems.
+  //TLSv 1.1 (5) if missing constant because TLSv1 (1) won't work on certain systems.
+  $ssl_version = defined('CURL_SSLVERSION_TLSv1') ? CURL_SSLVERSION_TLSv1 : 5;
   curl_setopt($curl, CURLOPT_SSLVERSION, $ssl_version);
   curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
   $et_return = curl_exec($curl);
