@@ -339,8 +339,8 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
     if (defined('CURL_SSLVERSION_TLSv1_2')) {
       $cur_url = 'https://www.easytransac.com/api/payment/page';
-    } else
-    {
+    }
+    else {
       $cur_url = 'https://gateway.easytransac.com';
     }
     curl_setopt($curl, CURLOPT_URL, $cur_url);
