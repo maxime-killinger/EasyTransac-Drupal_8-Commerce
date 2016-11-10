@@ -346,6 +346,9 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     curl_setopt($curl, CURLOPT_URL, $cur_url);
     curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
     $et_return = curl_exec($curl);
+    if(curl_errno($curl)) {
+      drupal_set_message('Curl error: ' . curl_error($curl), 'error');
+    }
     curl_close($curl);
     $et_return = json_decode($et_return, TRUE);
   }
