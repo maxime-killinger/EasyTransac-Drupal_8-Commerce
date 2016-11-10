@@ -330,9 +330,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   }
 
   $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
-
   // Call EasyTransac API to initialize a transaction.
-  
   if(function_exists('curl_version'))
   {
     $curl = curl_init();
@@ -340,7 +338,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     curl_setopt($curl, CURLOPT_HTTPHEADER, array($curl_header));
     curl_setopt($curl, CURLOPT_POST, TRUE);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-	if(defined('CURL_SSLVERSION_TLSv1_2'))
+	if(defined('CURL_SSLVERSION_TLSv1_2')) 
 	  $cur_url = 'https://www.easytransac.com/api/payment/page';
 	else
 	  $cur_url = 'https://gateway.easytransac.com';
@@ -350,8 +348,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     curl_close($curl);
     $et_return = json_decode($et_return, TRUE);
   }
-  else
-  {
+  else {
     $opts = array('http' => array(
       'method' => 'POST',
       'header' => "Content-type: application/x-www-form-urlencoded\r\n"
