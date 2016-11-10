@@ -347,7 +347,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
     $et_return = curl_exec($curl);
     if (curl_errno($curl)) {
-      watchdog(WATCHDOG_ERROR, 'Curl error: ' . curl_error($curl));
+      watchdog(WATCHDOG_ERROR, curl_error($curl));
     }
     curl_close($curl);
     $et_return = json_decode($et_return, TRUE);
