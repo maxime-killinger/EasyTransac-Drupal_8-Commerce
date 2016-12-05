@@ -305,7 +305,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   $curl_info_string	 = function_exists('curl_version') ? 'enabled' : 'not found';
   $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
   $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
-  $version_string = sprintf('WooCommerce 1.8 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
+  $version_string = sprintf('Drupal 1.6 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
 
   // Order mail if anonymous.
   $data = array(
@@ -580,6 +580,15 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
       break;
 
     case 'captured':
+		
+      // Saves ClientId
+	  $user = user_load($received_data['Uid']);
+      $user->is_new = false;
+      $edit = array();
+      $edit['data']['easytransac-clientid'] = $received_data['Client']['Id'];
+      user_save($user, $edit);
+	  
+	  // Saves status
       $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
       $multiple_payments_info = ($is_multiple_payments ? (' Payment ' . ($count_succeeded_payments + 1) . ' of 3.') : '');
       $test_info = (isset($received_data['Test']) && $received_data['Test'] === 'yes') ? '[TEST] - ' : '';
