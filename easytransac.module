@@ -301,6 +301,12 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   // Multiple payment was opted in plus multiple payments must be enabled.
   $multiple_payments = isset($_SESSION['easytransac_multiple_payments']) ? ($_SESSION['easytransac_multiple_payments'] && $settings['multiple_payments']) : 0;
 
+  // Requirements.
+  $curl_info_string	 = function_exists('curl_version') ? 'enabled' : 'not found';
+  $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
+  $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
+  $version_string = sprintf('WooCommerce 1.8 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
+
   // Order mail if anonymous.
   $data = array(
     "Amount" => $amount,
@@ -322,6 +328,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "CallingCode" => "",
     "Phone" => "",
     "UserAgent" => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+    "Version" => $version_string,
   );
 
   if ($multiple_payments) {
