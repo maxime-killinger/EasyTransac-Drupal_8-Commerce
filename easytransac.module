@@ -46,6 +46,11 @@ function easytransac_menu() {
     'type' => MENU_CALLBACK,
     'access callback' => 'easytransac_notification_access',
   );
+  $items['easytransac/listcards'] = array(
+    'page callback' => 'easytransac_listcards',
+    'type' => MENU_CALLBACK,
+    'access callback' => 'user_is_logged_in',
+  );
   return $items;
 }
 
@@ -610,4 +615,40 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
   // Save the transaction information.
   commerce_payment_transaction_save($transaction);
+}
+
+/**
+ * Expose settings.
+ * @return array
+ */
+function easytransac__expose_settings() {
+  $payment_instance = commerce_payment_method_instance_load('easytransac|commerce_payment_easytransac');
+  return $payment_instance['settings'];
+}
+
+/**
+ * Lists OneClick cards.
+ */
+function easytransac_listcards() {
+  module_load_include('php', 'easytransac', 'includes/Easytransac');
+  $output = array('status' => 0);
+  extract(easytransac__expose_settings());
+  global $user;
+  if (isset($api_key) && !empty($user->data['easytransac-clientid'])) {
+    $data = array(
+      "ClientId" => $user->data['easytransac-clientid'],
+    );
+	$easytransac_api = new EasytransacApi();
+    $response = $easytransac_api->setServiceListCards()->communicate($api_key, $data);
+
+    if (!empty($response['Result'])) {
+      $buffer = array();
+      foreach ($response['Result'] as $row)
+      {
+        $buffer[] = array_intersect_key($row, array('Alias' => 1, 'CardNumber' => 1));
+      }
+      $output = array('status' => !empty($buffer), 'packet' => $buffer);
+    }
+  }
+  echo json_encode($output);
 }
