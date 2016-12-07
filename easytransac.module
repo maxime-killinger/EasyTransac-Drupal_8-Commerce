@@ -144,7 +144,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
           ),
         );
 		if(isset($_SESSION['easytransac_last_error'])) {
-          drupal_set_message('EasyTransac payment error: ' . $_SESSION['easytransac_last_error'], 'error');
+          drupal_set_message(t('EasyTransac payment error: ') . $_SESSION['easytransac_last_error'], 'error');
           unset($_SESSION['easytransac_last_error']);
 		}
         $value = theme('image', $variables) . ' ' . t('Easytransac - payez avec votre carte de crédit');
@@ -332,10 +332,11 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
  */
 function easytransac_oneclick_payment($form, $form_state, $order, $payment_method) {
   module_load_include('php', 'easytransac', 'includes/Easytransac');
+  $api_key = null;
   extract(easytransac__expose_settings());
   global $user;
-  if (!isset($api_key) || empty($user->data['easytransac-clientid'])) {
-    drupal_set_message('EasyTransac OneClick payment not available.', 'error');
+  if (!empty($api_key) || empty($user->data['easytransac-clientid'])) {
+    drupal_set_message(t('EasyTransac OneClick payment not available.'), 'error');
     return array();
   }
   // Requirements.
