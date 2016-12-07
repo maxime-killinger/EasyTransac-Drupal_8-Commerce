@@ -11,10 +11,8 @@ jQuery(function ($) {
 
     // Unified OneClick loader
     // Requires : listcards_url
-    //            oneclick_url
     //
     var listcards_url = '/easytransac/listcards';
-    var oneclick_url = '/easytransac/oneclick';
     
     $('#'+session_id).html('<span id="etocloa001">OneClick loading ...</span>');
     

@@ -144,7 +144,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
           ),
         );
 		if(isset($_SESSION['easytransac_last_error'])) {
-          drupal_set_message('EasyTransac payment error: ' . $_SESSION['easytransac_last_error'],'error');
+          drupal_set_message('EasyTransac payment error: ' . $_SESSION['easytransac_last_error'], 'error');
           unset($_SESSION['easytransac_last_error']);
 		}
         $value = theme('image', $variables) . ' ' . t('Easytransac - payez avec votre carte de crédit');
@@ -338,6 +338,11 @@ function easytransac_oneclick_payment($form, $form_state, $order, $payment_metho
     drupal_set_message('EasyTransac OneClick payment not available.', 'error');
     return array();
   }
+  // Requirements.
+  $curl_info_string	 = function_exists('curl_version') ? 'enabled' : 'not found';
+  $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
+  $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
+  $version_string = sprintf('Drupal 1.6 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
   $data = array(
     "Alias" => strip_tags($_SESSION['easytransac_oneclick_card']),
     "Amount" => easytransac__order_amount($order),
@@ -345,6 +350,7 @@ function easytransac_oneclick_payment($form, $form_state, $order, $payment_metho
     "OrderId" => $order->order_id,
     "ClientId" =>  $user->data['easytransac-clientid'],
     "UserAgent" => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+    "Version" => $version_string,
   );
   $easytransac_api = new EasytransacApi();
   $response = $easytransac_api->setServiceOneClick()->communicate($api_key, $data);
