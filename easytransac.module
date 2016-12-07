@@ -143,6 +143,10 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
             ),
           ),
         );
+		if(isset($_SESSION['easytransac_last_error'])) {
+          drupal_set_message('EasyTransac payment error: ' . $_SESSION['easytransac_last_error'],'error');
+          unset($_SESSION['easytransac_last_error']);
+		}
         $value = theme('image', $variables) . ' ' . t('Easytransac - payez avec votre carte de crédit');
 
         $form['commerce_payment']['payment_method']['#attached']['css'][] = drupal_get_path('module', 'easytransac') . '/easytransac.css';
@@ -298,8 +302,7 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
   if(easytransac__is_oneclick_payment()) {
 	return easytransac_oneclick_payment($form, $form_state, $order, $payment_method);
   }
-print_r($_SESSION);
-die('oneclick not reached');
+
   $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
   $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
 
@@ -355,10 +358,9 @@ function easytransac_oneclick_payment($form, $form_state, $order, $payment_metho
   }
   else {
     // Payment failed :  Show error to end user.
-    drupal_set_message(t('Payment failed: error', array('error' => $response['Result']['Error'])), 'error');
+	$_SESSION['easytransac_last_error'] = $response['Error'];
     $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
     drupal_goto($cancel_url);
-    return array();
   }
 }
 
@@ -470,7 +472,10 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     ));
     watchdog('easytransac', $message, array(), WATCHDOG_ERROR);
     drupal_set_message($message, 'error');
-    return array();
+    // Payment failed :  Show error to end user.
+	$_SESSION['easytransac_last_error'] = $et_return['Error'];
+    $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
+    drupal_goto($cancel_url);
   }
 
   // Post parameters to the external payment page.
