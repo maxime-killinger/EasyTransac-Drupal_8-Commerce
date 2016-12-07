@@ -726,9 +726,10 @@ function easytransac__expose_settings() {
 function easytransac_listcards() {
   module_load_include('php', 'easytransac', 'includes/Easytransac');
   $output = array('status' => 0);
+  $api_key = null;
   extract(easytransac__expose_settings());
   global $user;
-  if (isset($api_key) && !empty($user->data['easytransac-clientid'])) {
+  if (!empty($api_key) && !empty($user->data['easytransac-clientid'])) {
     $data = array(
       "ClientId" => $user->data['easytransac-clientid'],
     );
