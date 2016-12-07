@@ -185,6 +185,29 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
       '#markup' => t("Paiement d'un premier acompte de @first suivi de deux mensualités de @second.", $down_payments),
     );
   }
+
+  // Adds OneClick.
+  $form['oneclick_namespace'] = array(
+    '#type' => 'item',
+    '#markup' => '<div id="easytransac-namespace"></div>',
+  );
+  $form['easytransac_is_oneclick'] = array(
+    '#type' => 'hidden',
+	'#default_value'=> 'no',
+    '#attributes' => array(
+      'id' => 'easytransac_is_oneclick',
+    )
+  );
+  $form['easytransac_oneclick_card'] = array(
+    '#type' => 'hidden',
+	'#default_value'=> '',
+    '#attributes' => array(
+      'id' => 'easytransac_oneclick_card',
+    )
+  );
+  $form['oneclick_namespace']['#attached']['js'] = array(
+    drupal_get_path('module', 'easytransac') . '/js/oneclick.js',
+  );
   return $form;
 }
 
@@ -243,11 +266,23 @@ function easytransac__order_supports_multiple_payments(stdClass $order) {
  * Implements CALLBACK_commerce_payment_method_submit_form_submit().
  *
  * Checks if the multiple payment option has been chosen.
+ * Checks if oneclick payment has been chosen.
  */
 function easytransac_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
+  $_SESSION['easytransac_multiple_payments'] = 0;
   if (easytransac__order_supports_multiple_payments($order)) {
     $_SESSION['easytransac_multiple_payments'] = isset($pane_values['multiple_payments']) ? $pane_values['multiple_payments'] : 0;
   }
+  $_SESSION['easytransac_is_oneclick'] = isset($pane_values['easytransac_is_oneclick']) ? 1 : 0;
+  $_SESSION['easytransac_oneclick_card'] = isset($pane_values['easytransac_oneclick_card']) ? $pane_values['easytransac_oneclick_card'] :null;
+}
+
+/**
+ * Helper to know if payment is an OneClick one.
+ * @return bool
+ */
+function easytransac__is_oneclick_payment() {
+  return 1 == $_SESSION['easytransac_is_oneclick'] && !empty($_SESSION['easytransac_oneclick_card']);
 }
 
 /**
@@ -259,6 +294,12 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
     drupal_set_message(t('Please configure your EasyTransac API Key.'), 'error');
     return array();
   }
+
+  if(easytransac__is_oneclick_payment()) {
+	return easytransac_oneclick_payment($form, $form_state, $order, $payment_method);
+  }
+print_r($_SESSION);
+die('oneclick not reached');
   $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
   $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
 
@@ -275,6 +316,50 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
   );
   $merged_settings = $payment_method['settings'] + $settings;
   return easytransac_order_form($form, $form_state, $order, $merged_settings);
+}
+
+/**
+ * OneClick payment.
+ * @global type $user
+ * @param type $form
+ * @param type $form_state
+ * @param type $order
+ * @param type $merged_settings
+ * @return type
+ */
+function easytransac_oneclick_payment($form, $form_state, $order, $payment_method) {
+  module_load_include('php', 'easytransac', 'includes/Easytransac');
+  extract(easytransac__expose_settings());
+  global $user;
+  if (!isset($api_key) || empty($user->data['easytransac-clientid'])) {
+    drupal_set_message('EasyTransac OneClick payment not available.', 'error');
+    return array();
+  }
+  $data = array(
+    "Alias" => strip_tags($_SESSION['easytransac_oneclick_card']),
+    "Amount" => easytransac__order_amount($order),
+    "ClientIp" => $_SERVER['REMOTE_ADDR'],
+    "OrderId" => $order->order_id,
+    "ClientId" =>  $user->data['easytransac-clientid'],
+    "UserAgent" => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+  );
+  $easytransac_api = new EasytransacApi();
+  $response = $easytransac_api->setServiceOneClick()->communicate($api_key, $data);
+  $response['Result']['Signature'] = $response['Signature'];
+  easytransac__add_transaction($response['Result'], $order, $payment_method);
+
+  if(in_array($response['Result']['Status'], array('captured', 'pending'))) {
+    // Payment is processed / captured
+    $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
+	drupal_goto($return_url);
+  }
+  else {
+    // Payment failed :  Show error to end user.
+    drupal_set_message(t('Payment failed: error', array('error' => $response['Result']['Error'])), 'error');
+    $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
+    drupal_goto($cancel_url);
+    return array();
+  }
 }
 
 /**
@@ -305,7 +390,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 
   // Multiple payment was opted in plus multiple payments must be enabled.
   $multiple_payments = isset($_SESSION['easytransac_multiple_payments']) ? ($_SESSION['easytransac_multiple_payments'] && $settings['multiple_payments']) : 0;
-
+  
   // Requirements.
   $curl_info_string	 = function_exists('curl_version') ? 'enabled' : 'not found';
   $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
@@ -387,9 +472,6 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     drupal_set_message($message, 'error');
     return array();
   }
-
-  // Allow modules to alter parameters of the API request.
-  drupal_alter('easytransac_order_form_data', $data, $order);
 
   // Post parameters to the external payment page.
   $form['#action'] = $et_return['Result']['PageUrl'];
@@ -638,7 +720,7 @@ function easytransac_listcards() {
     $data = array(
       "ClientId" => $user->data['easytransac-clientid'],
     );
-	$easytransac_api = new EasytransacApi();
+    $easytransac_api = new EasytransacApi();
     $response = $easytransac_api->setServiceListCards()->communicate($api_key, $data);
 
     if (!empty($response['Result'])) {
