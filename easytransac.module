@@ -405,6 +405,8 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
   $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
   $version_string = sprintf('Drupal 1.6 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
+  global $language;
+  $langcode = $language->language == 'fr' ? 'FRE' : 'ENG';
 
   // Order mail if anonymous.
   $data = array(
@@ -428,6 +430,7 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     "Phone" => "",
     "UserAgent" => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
     "Version" => $version_string,
+	"Language" => $langcode,
   );
 
   if ($multiple_payments) {
