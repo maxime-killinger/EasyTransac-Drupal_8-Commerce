@@ -1,4 +1,5 @@
 <?php
+require __DIR__ . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
 /**
  * @file
@@ -150,7 +151,6 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
         $value = theme('image', $variables) . ' ' . t('Easytransac - payez avec votre carte de crédit');
 
         $form['commerce_payment']['payment_method']['#attached']['css'][] = drupal_get_path('module', 'easytransac') . '/easytransac.css';
-
         break;
       }
     }
@@ -160,7 +160,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state) {
 /**
  * Implements CALLBACK_commerce_payment_method_submit_form().
  *
- * Adds the multiple payment option.
+ * Adds multiple payments option.
  */
 function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
 
@@ -216,7 +216,7 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
 }
 
 /**
- * Calculates the multiple payments.
+ * Calculates multiple payments.
  *
  * @param int $amount
  *   Amount in cents.
@@ -322,6 +322,18 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
 }
 
 /**
+ * Returns a version string.
+ * @return string
+ */
+function easytransac__version_string() {
+  $curl_info_string	 = function_exists('curl_version') ? 'enabled' : 'not found';
+  $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
+  $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
+  $version_string = sprintf('Drupal 2.0 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
+  return $version_string;
+}
+
+/**
  * OneClick payment.
  * @global type $user
  * @param type $form
@@ -331,41 +343,41 @@ function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
  * @return type
  */
 function easytransac_oneclick_payment($form, $form_state, $order, $payment_method) {
-  module_load_include('php', 'easytransac', 'includes/Easytransac');
   $api_key = null;
   extract(easytransac__expose_settings());
   global $user;
-  if (!empty($api_key) || empty($user->data['easytransac-clientid'])) {
-    drupal_set_message(t('EasyTransac OneClick payment not available.'), 'error');
+  if (empty($api_key) || empty($user->data['easytransac-clientid'])) {
+	$_SESSION['easytransac_last_error'] = 'EasyTransac OneClick payment not available.';
+    $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
+    drupal_goto($cancel_url);
     return array();
   }
-  // Requirements.
-  $curl_info_string	 = function_exists('curl_version') ? 'enabled' : 'not found';
-  $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
-  $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
-  $version_string = sprintf('Drupal 1.6 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
-  $data = array(
-    "Alias" => strip_tags($_SESSION['easytransac_oneclick_card']),
-    "Amount" => easytransac__order_amount($order),
-    "ClientIp" => $_SERVER['REMOTE_ADDR'],
-    "OrderId" => $order->order_id,
-    "ClientId" =>  $user->data['easytransac-clientid'],
-    "UserAgent" => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-    "Version" => $version_string,
-  );
-  $easytransac_api = new EasytransacApi();
-  $response = $easytransac_api->setServiceOneClick()->communicate($api_key, $data);
-  $response['Result']['Signature'] = $response['Signature'];
-  easytransac__add_transaction($response['Result'], $order, $payment_method);
+  
+  // SDK OneClick
+//  EasyTransac\Core\Services::getInstance()->setDebug(true);
+  EasyTransac\Core\Services::getInstance()->provideAPIKey($api_key);
+  $transaction = (new EasyTransac\Entities\OneClickTransaction())
+			->setAlias(strip_tags($_SESSION['easytransac_oneclick_card']))
+			->setAmount(easytransac__order_amount($order))
+			->setOrderId($order->order_id)
+			->setClientId($user->data['easytransac-clientid'])
+			->setVersion(easytransac__version_string());
 
-  if(in_array($response['Result']['Status'], array('captured', 'pending'))) {
+  $dp = new EasyTransac\Requests\OneClickPayment();
+  $response = $dp->execute($transaction);
+
+  /* @var  $doneTransaction \EasyTransac\Entities\DoneTransaction */
+  $doneTransaction = $response->getContent();
+  easytransac__add_transaction($doneTransaction, $order, $payment_method);
+  
+  if($doneTransaction->isCaptured() || $doneTransaction->isPending()) {
     // Payment is processed / captured
     $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
 	drupal_goto($return_url);
   }
   else {
     // Payment failed :  Show error to end user.
-	$_SESSION['easytransac_last_error'] = $response['Error'];
+	$_SESSION['easytransac_last_error'] = $response->getErrorCode() . ' - ' . $response->getErrorMessage();
     $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
     drupal_goto($cancel_url);
   }
@@ -384,6 +396,8 @@ function easytransac_redirect_form_validate($order, $payment_method) {
  * Builds an EasyTransac external payment page form from an order object.
  */
 function easytransac_order_form($form, &$form_state, $order, $settings) {
+  $api_key = null;
+  extract(easytransac__expose_settings());
 
   // Order amount.
   $amount = easytransac__order_amount($order);
@@ -398,100 +412,67 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
   $customer = commerce_customer_profile_load($order->commerce_customer_billing[LANGUAGE_NONE][0]['profile_id']);
 
   // Multiple payment was opted in plus multiple payments must be enabled.
-  $multiple_payments = isset($_SESSION['easytransac_multiple_payments']) ? ($_SESSION['easytransac_multiple_payments'] && $settings['multiple_payments']) : 0;
+  $multiple_payments = empty($_SESSION['easytransac_multiple_payments']) ? 0 : ($_SESSION['easytransac_multiple_payments'] && $settings['multiple_payments']);
   
   // Requirements.
-  $curl_info_string	 = function_exists('curl_version') ? 'enabled' : 'not found';
-  $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
-  $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
-  $version_string = sprintf('Drupal 1.6 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
   global $language;
   $langcode = $language->language == 'fr' ? 'FRE' : 'ENG';
+  
+  // SDK Payment Page
+  EasyTransac\Core\Services::getInstance()->provideAPIKey($api_key);
+  
+  $ET_customer = (new EasyTransac\Entities\Customer())
+		->setEmail(!empty($user->mail) ? $user->mail : $order->mail)
+		->setUid($user->uid)
+		->setFirstname($customer->commerce_customer_address[LANGUAGE_NONE][0]['first_name'])
+		->setLastname($customer->commerce_customer_address[LANGUAGE_NONE][0]['last_name'])
+		->setAddress($customer->commerce_customer_address[LANGUAGE_NONE][0]['thoroughfare'])
+		->setZipCode($customer->commerce_customer_address[LANGUAGE_NONE][0]['postal_code'])
+		->setCity($customer->commerce_customer_address[LANGUAGE_NONE][0]['locality'])
+		->setBirthDate('')
+		->setNationality('')
+		->setCallingCode('')
+		->setPhone('');
 
-  // Order mail if anonymous.
-  $data = array(
-    "Amount" => $amount,
-    "ClientIp" => ip_address(),
-    "Email" => !empty($user->mail) ? $user->mail : $order->mail,
-    "OrderId" => $order->order_id,
-    "Uid" => $user->uid,
-    "ReturnUrl" => $settings['ReturnUrl'],
-    "CancelUrl" => $settings['CancelUrl'],
-    "3DS" => $settings['3ds'] ? 'yes' : 'no',
-    "MultiplePayments" => $multiple_payments ? 'yes' : 'no',
-    "Firstname" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['first_name'],
-    "Lastname" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['last_name'],
-    "Address" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['thoroughfare'],
-    "ZipCode" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['postal_code'],
-    "City" => $customer->commerce_customer_address[LANGUAGE_NONE][0]['locality'],
-    "BirthDate" => "",
-    "Nationality" => "",
-    "CallingCode" => "",
-    "Phone" => "",
-    "UserAgent" => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-    "Version" => $version_string,
-	"Language" => $langcode,
-  );
+  $transaction = (new EasyTransac\Entities\PaymentPageTransaction())
+		->setAmount($amount)
+		->setCustomer($ET_customer)
+		->setOrderId($order->order_id)
+		->setReturnUrl($settings['ReturnUrl'])
+		->setCancelUrl($settings['CancelUrl'])
+		->setSecure($settings['3ds'] ? 'yes' : 'no')
+		->setVersion(easytransac__version_string())
+		->setLanguage($langcode)
+		->setMultiplePayments($multiple_payments ? 'yes' : 'no');
 
   if ($multiple_payments) {
     $down_payments = easytransac__down_payment($amount);
-    $data['DownPayment'] = $down_payments['@first'];
+	$transaction->setDownPayment($down_payments['@first']);
   }
 
-  $data['Signature'] = easytransac__get_signature($data, $settings['api_key']);
-  // Call EasyTransac API to initialize a transaction.
-  if (function_exists('curl_version')) {
-    $curl = curl_init();
-    $curl_header = 'EASYTRANSAC-API-KEY:' . $settings['api_key'];
-    curl_setopt($curl, CURLOPT_HTTPHEADER, array($curl_header));
-    curl_setopt($curl, CURLOPT_POST, TRUE);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-    if (defined('CURL_SSLVERSION_TLSv1_2')) {
-      $cur_url = 'https://www.easytransac.com/api/payment/page';
-    }
-    else {
-      $cur_url = 'https://gateway.easytransac.com';
-    }
-    curl_setopt($curl, CURLOPT_URL, $cur_url);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
-    $et_return = curl_exec($curl);
-    if (curl_errno($curl)) {
-      watchdog(WATCHDOG_ERROR, curl_error($curl));
-    }
-    curl_close($curl);
-    $et_return = json_decode($et_return, TRUE);
-  }
-  else {
-    $opts = array(
-      'http' => array(
-        'method' => 'POST',
-        'header' => "Content-type: application/x-www-form-urlencoded\r\n"
-        . "EASYTRANSAC-API-KEY:" . $settings['api_key'] . "\r\n",
-        'content' => http_build_query($data),
-        'timeout' => 5,
-      ),
-    );
-    $context = stream_context_create($opts);
-    $et_return = file_get_contents('https://gateway.easytransac.com', FALSE, $context);
-    $et_return = json_decode($et_return, TRUE);
-  }
+  $request = new EasyTransac\Requests\PaymentPage();
 
-  if (!empty($et_return['Error'])) {
+  $response = $request->execute($transaction);
+
+  if (!$response->isSuccess()) {
     $message = t('Error: !message', array(
-      '!message' => $et_return['Error'],
+      '!message' => $response->getErrorCode() . ' - ' .$response->getErrorMessage()
     ));
     watchdog('easytransac', $message, array(), WATCHDOG_ERROR);
     drupal_set_message($message, 'error');
     // Payment failed :  Show error to end user.
-	$_SESSION['easytransac_last_error'] = $et_return['Error'];
+	$_SESSION['easytransac_last_error'] = $response->getErrorMessage();
     $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
     drupal_goto($cancel_url);
   }
-
+  
+  /* @var  $responseContent \EasyTransac\Entities\PaymentPageInfos */
+  $responseContent = $response->getContent();
+  
   // Post parameters to the external payment page.
-  $form['#action'] = $et_return['Result']['PageUrl'];
+  $form['#action'] = $responseContent->getPageUrl();
 
-  foreach ($data as $name => $value) {
+  foreach ($responseContent->toArray() as $name => $value) {
     if (!empty($value)) {
       $form[$name] = array(
         '#type' => 'hidden',
@@ -509,64 +490,9 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 }
 
 /**
- * Easytransac API key signature.
- *
- * @param array $params
- *      Data to be signed.
- * @param string $api_key
- *      API key.
- *
- * @return string
- *   API key.
- */
-function easytransac__get_signature($params, $api_key) {
-  $signature = '';
-  if (is_array($params)) {
-    ksort($params);
-    foreach ($params as $name => $valeur) {
-      if (strcasecmp($name, 'signature') != 0) {
-        if (is_array($valeur)) {
-          ksort($valeur);
-          foreach ($valeur as $v) {
-            $signature .= $v . '$';
-          }
-        }
-        else {
-          $signature .= $valeur . '$';
-        }
-      }
-    }
-  }
-  else {
-    $signature = $params . '$';
-  }
-
-  $signature .= $api_key;
-  return sha1($signature);
-}
-
-/**
- * Check the signature of EasyTransac's incoming data.
- *
- * @param array $data
- *      ET received data.
- * @param string $api_key
- *      ET API key.
- *
- * @return bool
- *   TRUE if the signature is valid.
- */
-function easytransac__verify_signature($data, $api_key) {
-  $signature = $data['Signature'];
-  unset($data['Signature']);
-  $calculated = easytransac__get_signature($data, $api_key);
-  return $signature === $calculated;
-}
-
-/**
  * Updates order with a transaction.
  *
- * @param array $received_data
+ * @param array | \EasyTransac\Entities\DoneTransaction $received_data
  *      Data from ET.
  * @param object $order
  *      Commerce order object.
@@ -574,29 +500,30 @@ function easytransac__verify_signature($data, $api_key) {
  *      Payment instance object.
  */
 function easytransac__add_transaction($received_data, $order = NULL, $payment_instance = NULL) {
-  // First minimal data validation.
-  $required_fields = array(
-    'RequestId',
-    'Tid',
-    'Uid',
-    'OrderId',
-    'Status',
-    'Signature',
-  );
-
-  if (empty($received_data)) {
-    watchdog('easytransac', 'Invalid data received: empty data packet.', array(), WATCHDOG_ERROR);
+  $api_key = NULL;
+  extract(easytransac__expose_settings());
+  if (empty($api_key)) {
+    drupal_set_message(t('EasyTransac module not configured.'), 'error');
     return;
   }
-
-  foreach ($required_fields as $field_key) {
-    if (empty($received_data[$field_key])) {
-      watchdog('easytransac', 'Invalid data received: missing required field', array(), WATCHDOG_ERROR);
+  
+  /* #var $response\EasyTransac\Entities\Notification $response*/
+  /* @var $response \EasyTransac\Entities\DoneTransaction */
+  
+  if(is_array($received_data)) {
+    try {
+      $response = \EasyTransac\Core\PaymentNotification::getContent($received_data, $api_key);
+      if(!$response) {
+	    throw new Exception ('empty response');
+	  }
+    }
+    catch (Exception $exc) {
+      watchdog('easytransac', $exc->getMessage(), array(), WATCHDOG_ERROR);
       return;
     }
   }
 
-  // Check signature.
+  // Retrieve payment instance.
   if (is_null($payment_instance)) {
     $payment_instance = commerce_payment_method_instance_load("easytransac|commerce_payment_easytransac");
   }
@@ -606,16 +533,9 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     return;
   }
 
-  $signature_verified = easytransac__verify_signature($received_data, $payment_instance['settings']['api_key']);
-
-  if (!$signature_verified) {
-    watchdog('easytransac', 'Invalid signature of received data.', array(), WATCHDOG_ERROR);
-    return;
-  }
-
   // Retrieve orders.
   if (is_null($order)) {
-    $order = commerce_order_load(intval($received_data['OrderId']));
+    $order = commerce_order_load($response->getOrderId());
     if (!$order) {
       watchdog('easytransac', 'Unknown order ID received.', array(), WATCHDOG_ERROR);
       return;
@@ -635,7 +555,7 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
 
   // Verify if the received data has already been processed.
   foreach ($payments as $payment) {
-    if ($payment->remote_id == $received_data['Tid']) {
+    if ($payment->remote_id == $response->getTid()) {
       if ($payment->status != COMMERCE_PAYMENT_STATUS_PENDING) {
         // Transaction already processed.
         watchdog('easytransac', 'Transaction already processed.', array(), WATCHDOG_NOTICE);
@@ -650,11 +570,11 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   }
 
   // Verify data consistency between local order and remote data.
-  if ($order->order_id != $received_data['OrderId']) {
+  if ($order->order_id != $response->getOrderId()) {
     watchdog('easytransac', 'Order id does not match the remote one.', array(), WATCHDOG_ERROR);
     return;
   }
-  elseif ($order->uid != $received_data['Uid']) {
+  elseif ($order->uid != $response->getUid()) {
     watchdog('easytransac', 'Uid does not match the remote one.', array(), WATCHDOG_ERROR);
     return;
   }
@@ -663,20 +583,21 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
   $transaction = commerce_payment_transaction_new('easytransac', $order->order_id);
   $transaction->instance_id = $payment_instance['instance_id'];
 
-  $transaction->remote_id = $received_data['Tid'];
-  $transaction->amount = commerce_currency_decimal_to_amount($received_data['Amount'], 'EUR');
+  $transaction->remote_id = $response->getTid();
+  $transaction->amount = commerce_currency_decimal_to_amount($response->getAmount(), 'EUR');
   $transaction->currency_code = 'EUR';
 
-  $transaction->remote_status = $received_data['Status'];
+  $transaction->remote_status = $response->getStatus();
 
-  $transaction->data['RequestId'] = $received_data['RequestId'];
+  $transaction->data['RequestId'] = $response->getRequestId();
 
-  $is_multiple_payments = isset($received_data['MultiplePayments']) && $received_data['MultiplePayments'] === 'yes';
-
-  switch ($received_data['Status']) {
+  $is_multiple_payments = is_a($response, '\EasyTransac\Entities\DoneTransaction') 
+							&& $response->getMultiplePayments() === 'yes';
+  
+  switch ($response->getStatus()) {
     case 'failed':
       $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
-      $transaction->message = $received_data['Message'];
+      $transaction->message = $response->getMessage();
       commerce_order_status_update($order, 'canceled', FALSE, NULL, t('Payment failure.'));
       drupal_set_message(t('Le paiement a échoué.'), 'error');
       break;
@@ -684,17 +605,17 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
     case 'captured':
 		
       // Saves ClientId
-	  $user = user_load($received_data['Uid']);
+	  $user = user_load($response->getUid());
       $user->is_new = false;
       $edit = array();
-      $edit['data']['easytransac-clientid'] = $received_data['Client']['Id'];
+      $edit['data']['easytransac-clientid'] = $response->getClient()->getId();
       user_save($user, $edit);
 	  
 	  // Saves status
       $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
       $multiple_payments_info = ($is_multiple_payments ? (' Payment ' . ($count_succeeded_payments + 1) . ' of 3.') : '');
-      $test_info = (isset($received_data['Test']) && $received_data['Test'] === 'yes') ? '[TEST] - ' : '';
-      $transaction->message = $test_info . $received_data['Message'] . '.' . $multiple_payments_info;
+      $test_info = (is_a($response, '\EasyTransac\Entities\Notification') && $response->getTest() === 'yes') ? '[TEST] - ' : '';
+      $transaction->message = $test_info . $response->getMessage() . '.' . $multiple_payments_info;
       commerce_order_status_update($order, 'completed');
       break;
 
@@ -709,7 +630,6 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
       $transaction->message = $received_data['Message'];
       break;
   }
-
   // Save the transaction information.
   commerce_payment_transaction_save($transaction);
 }
@@ -727,26 +647,23 @@ function easytransac__expose_settings() {
  * Lists OneClick cards.
  */
 function easytransac_listcards() {
-  module_load_include('php', 'easytransac', 'includes/Easytransac');
   $output = array('status' => 0);
   $api_key = null;
   extract(easytransac__expose_settings());
   global $user;
   if (!empty($api_key) && !empty($user->data['easytransac-clientid'])) {
-    $data = array(
-      "ClientId" => $user->data['easytransac-clientid'],
-    );
-    $easytransac_api = new EasytransacApi();
-    $response = $easytransac_api->setServiceListCards()->communicate($api_key, $data);
-
-    if (!empty($response['Result'])) {
-      $buffer = array();
-      foreach ($response['Result'] as $row)
-      {
-        $buffer[] = array_intersect_key($row, array('Alias' => 1, 'CardNumber' => 1));
-      }
-      $output = array('status' => !empty($buffer), 'packet' => $buffer);
-    }
+    EasyTransac\Core\Services::getInstance()->provideAPIKey($api_key);
+	$customer = (new EasyTransac\Entities\Customer())->setClientId($user->data['easytransac-clientid']);
+	$request = new EasyTransac\Requests\CreditCardsList();
+	$response = $request->execute($customer);
+	if ($response->isSuccess()) {
+		$buffer = array();
+		foreach ($response->getContent()->getCreditCards() as $cc) {
+			/* @var $cc EasyTransac\Entities\CreditCard */
+			$buffer[] = array('Alias' => $cc->getAlias(), 'CardNumber' => $cc->getNumber());
+		}
+		$output = array('status' => !empty($buffer), 'packet' => $buffer);
+	}
   }
   echo json_encode($output);
 }
