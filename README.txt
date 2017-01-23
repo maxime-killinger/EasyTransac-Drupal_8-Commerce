@@ -1,7 +1,7 @@
 INTRODUCTION
 ------------
 
-The EasyTransac module adds a payment method to Drupal Commerce in order to
+The EasyTransac module adds a payment method to Drupal 7 Commerce in order to
 check out via EasyTransac's payment service.
 
 REQUIREMENTS
