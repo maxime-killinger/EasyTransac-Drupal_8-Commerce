@@ -352,33 +352,41 @@ function easytransac_oneclick_payment($form, $form_state, $order, $payment_metho
     drupal_goto($cancel_url);
     return array();
   }
-  
-  // SDK OneClick
-//  EasyTransac\Core\Services::getInstance()->setDebug(true);
-  EasyTransac\Core\Services::getInstance()->provideAPIKey($api_key);
-  $transaction = (new EasyTransac\Entities\OneClickTransaction())
-			->setAlias(strip_tags($_SESSION['easytransac_oneclick_card']))
-			->setAmount(easytransac__order_amount($order))
-			->setOrderId($order->order_id)
-			->setClientId($user->data['easytransac-clientid'])
-			->setVersion(easytransac__version_string());
+  try {
+	// SDK OneClick
+    //  EasyTransac\Core\Services::getInstance()->setDebug(true);
+	EasyTransac\Core\Services::getInstance()->provideAPIKey($api_key);
+	$transaction = (new EasyTransac\Entities\OneClickTransaction())
+			  ->setAlias(strip_tags($_SESSION['easytransac_oneclick_card']))
+			  ->setAmount(easytransac__order_amount($order))
+			  ->setOrderId($order->order_id)
+			  ->setClientId($user->data['easytransac-clientid'])
+			  ->setVersion(easytransac__version_string());
 
-  $dp = new EasyTransac\Requests\OneClickPayment();
-  $response = $dp->execute($transaction);
+	$dp = new EasyTransac\Requests\OneClickPayment();
+	$response = $dp->execute($transaction);
 
-  /* @var  $doneTransaction \EasyTransac\Entities\DoneTransaction */
-  $doneTransaction = $response->getContent();
-  easytransac__add_transaction($doneTransaction, $order, $payment_method);
-  
-  if($doneTransaction->isCaptured() || $doneTransaction->isPending()) {
-    // Payment is processed / captured
-    $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
-	drupal_goto($return_url);
-  }
-  else {
-    // Payment failed :  Show error to end user.
-	$_SESSION['easytransac_last_error'] = $response->getErrorCode() . ' - ' . $response->getErrorMessage();
-    $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
+	/* @var  $doneTransaction \EasyTransac\Entities\DoneTransaction */
+	$doneTransaction = $response->getContent();
+	if(!$doneTransaction) {
+	  throw new Exception ('OneClick response couldn\'t be processed by ET SDK.');
+	}
+	easytransac__add_transaction($doneTransaction, $order, $payment_method);
+
+	if($doneTransaction->isCaptured() || $doneTransaction->isPending()) {
+	  // Payment is processed / captured
+	  $return_url = 'checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'];
+	  drupal_goto($return_url);
+	}
+	else {
+	  // Payment failed :  Show error to end user.
+	  $_SESSION['easytransac_last_error'] = $response->getErrorCode() . ' - ' . $response->getErrorMessage();
+	  $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
+	  drupal_goto($cancel_url);
+	}
+  } catch (Exception $exc) {
+    watchdog('easytransac', 'OneClick response exception: ' . $exc->getMessage(), array(), WATCHDOG_ERROR);
+    drupal_set_message(t('Error @error while contacting the payment provider. Please contact the administrator.', array('@error' => 'ET02')), 'error');
     drupal_goto($cancel_url);
   }
 }
@@ -515,6 +523,8 @@ function easytransac__add_transaction($received_data, $order = NULL, $payment_in
       watchdog('easytransac', $exc->getMessage(), array(), WATCHDOG_ERROR);
       return;
     }
+  } else {
+    $response = $received_data;
   }
 
   // Retrieve payment instance.
