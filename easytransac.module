@@ -393,7 +393,7 @@ function easytransac_redirect_form_validate($order, $payment_method) {
 }
 
 /**
- * Builds an EasyTransac external payment page form from an order object.
+ * Redirects to EasyTransac's external payment page.
  */
 function easytransac_order_form($form, &$form_state, $order, $settings) {
   $api_key = null;
@@ -454,6 +454,8 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
 
   $response = $request->execute($transaction);
 
+  $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
+  
   if (!$response->isSuccess()) {
     $message = t('Error: !message', array(
       '!message' => $response->getErrorCode() . ' - ' .$response->getErrorMessage()
@@ -462,31 +464,23 @@ function easytransac_order_form($form, &$form_state, $order, $settings) {
     drupal_set_message($message, 'error');
     // Payment failed :  Show error to end user.
 	$_SESSION['easytransac_last_error'] = $response->getErrorMessage();
-    $cancel_url = 'checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'];
     drupal_goto($cancel_url);
   }
   
-  /* @var  $responseContent \EasyTransac\Entities\PaymentPageInfos */
-  $responseContent = $response->getContent();
-  
-  // Post parameters to the external payment page.
-  $form['#action'] = $responseContent->getPageUrl();
-
-  foreach ($responseContent->toArray() as $name => $value) {
-    if (!empty($value)) {
-      $form[$name] = array(
-        '#type' => 'hidden',
-        '#value' => $value,
-      );
+  try {
+    /* @var  $responseContent \EasyTransac\Entities\PaymentPageInfos */
+    $responseContent = $response->getContent();
+    if($responseContent->getPageUrl()) {
+      drupal_goto($responseContent->getPageUrl());
+    } else {
+      drupal_goto($cancel_url);
     }
+  } catch (Exception $exc) {
+    watchdog('easytransac', 'Response exception: ' . $exc->getMessage(), array(), WATCHDOG_ERROR);
+    drupal_set_message(t('Error @error while contacting the payment provider. Please contact the administrator.', array('@error' => 'ET01')), 'error');
+    drupal_goto($cancel_url);
   }
-
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Proceed to EasyTransac'),
-  );
-
-  return $form;
+  return array();
 }
 
 /**
