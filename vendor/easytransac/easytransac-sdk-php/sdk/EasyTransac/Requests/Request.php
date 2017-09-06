@@ -7,7 +7,6 @@ use \EasyTransac\Entities\Entity;
 use \EasyTransac\Responses\StandardResponse;
 use \EasyTransac\Core\CommentParser;
 use EasyTransac\Core\Security;
-use EasyTransac\Core\Logger;
 
 /**
  * Gerenic request
@@ -35,9 +34,6 @@ abstract class Request
         try
         {
         	$params = $entity->toArray();
-			Logger::getInstance()->write('Les params:');
-			Logger::getInstance()->write($params);
-
             $response = Services::getInstance()->call($funcName, $params);
 	        $json = json_decode($response);
         
