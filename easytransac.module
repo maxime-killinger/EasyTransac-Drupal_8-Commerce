@@ -130,6 +130,13 @@ function easytransac_settings_form($settings = array())
         '#description' => t("Enable/Disable debug mode"),
         '#default_value' => $settings['debug_mode'],
     );
+
+    $form['one_click'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('One CLick'),
+        '#description' => t("Enable/Disable One Click"),
+        '#default_value' => $settings['one_click'],
+    );
     return $form;
 }
 
@@ -149,7 +156,7 @@ function easytransac_form_commerce_checkout_form_alter(&$form, &$form_state)
                 // Reset multiple payment session info.
                 $_SESSION['easytransac_multiple_payments'] = 0;
                 $variables = array(
-                    'path' => 'https://easytransac.com/img/pad_cms.jpg',
+                    'path' => drupal_get_path('module', 'easytransac') . '/assets/logo_paiement.png',
                     'title' => 'EasyTransac',
                     'alt' => 'EasyTransac',
                     'attributes' => array(
@@ -205,29 +212,31 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
         );
     }
 
-    // Adds OneClick.
-    $form['oneclick_namespace'] = array(
-        '#type' => 'item',
-        '#markup' => '<div id="easytransac-namespace"></div>',
-    );
-    $form['easytransac_is_oneclick'] = array(
-        '#type' => 'hidden',
-        '#default_value' => 'no',
-        '#attributes' => array(
-            'id' => 'easytransac_is_oneclick',
-        )
-    );
-    $form['easytransac_oneclick_card'] = array(
-        '#type' => 'hidden',
-        '#default_value' => '',
-        '#attributes' => array(
-            'id' => 'easytransac_oneclick_card',
-        )
-    );
-    $form['oneclick_namespace']['#attached']['js'] = array(
-        drupal_get_path('module', 'easytransac') . '/js/oneclick.js',
-    );
-    return $form;
+    if (!empty($payment_method['settings']['one_click'])) {
+        // Adds OneClick.
+        $form['oneclick_namespace'] = array(
+            '#type' => 'item',
+            '#markup' => '<div id="easytransac-namespace"></div>',
+        );
+        $form['easytransac_is_oneclick'] = array(
+            '#type' => 'hidden',
+            '#default_value' => 'no',
+            '#attributes' => array(
+                'id' => 'easytransac_is_oneclick',
+            )
+        );
+        $form['easytransac_oneclick_card'] = array(
+            '#type' => 'hidden',
+            '#default_value' => '',
+            '#attributes' => array(
+                'id' => 'easytransac_oneclick_card',
+            )
+        );
+        $form['oneclick_namespace']['#attached']['js'] = array(
+            drupal_get_path('module', 'easytransac') . '/js/oneclick.js',
+        );
+        return $form;
+    }
 }
 
 /**
@@ -315,7 +324,7 @@ function easytransac__is_oneclick_payment()
 function easytransac_redirect_form($form, &$form_state, $order, $payment_method)
 {
     // Init log if debug mode active
-    EasyTransac\Core\Logger::getInstance()->setActive($payment_method['settings']['debug_mode']);
+    EasyTransac\Core\Logger::getInstance()->setActive(!empty($payment_method['settings']['debug_mode']));
     EasyTransac\Core\Logger::getInstance()->setFilePath(__DIR__ . '/logs/');
 
 
