@@ -1,5 +1,6 @@
 name = Easytransac
 description = Implements Easytransac Website Payments in Drupal Commerce checkout. Please visit  <a target="_blank" href="https://www.easytransac.com">www.easytransac.com</a> and create an account first in order to get your API Key and to configure your application.
+version = 2.0.3
 package = Commerce (Easytransac)
 dependencies[] = commerce
 dependencies[] = commerce_ui
