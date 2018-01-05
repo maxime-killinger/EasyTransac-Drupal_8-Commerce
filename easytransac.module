@@ -365,7 +365,7 @@ function easytransac__version_string()
     $curl_info_string = function_exists('curl_version') ? 'enabled' : 'not found';
     $openssl_info_string = OPENSSL_VERSION_NUMBER >= 0x10001000 ? 'TLSv1.2' : 'OpenSSL version deprecated';
     $https_info_string = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'S' : '';
-    $version_string = sprintf('Drupal 2.0.3 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
+    $version_string = sprintf('Drupal 2.0.4 [cURL %s, OpenSSL %s, HTTP%s]', $curl_info_string, $openssl_info_string, $https_info_string);
     return $version_string;
 }
 
@@ -382,6 +382,11 @@ function easytransac_oneclick_payment($form, $form_state, $order, $payment_metho
 {
     $api_key = null;
     extract(easytransac__expose_settings());
+        // Init log if debug mode active
+    EasyTransac\Core\Logger::getInstance()->setActive(isset($debug_mode) && !empty($debug_mode));
+    EasyTransac\Core\Logger::getInstance()->setFilePath(__DIR__ . '/logs/');
+    
+
     global $user;
     if (empty($api_key) || empty($user->data['easytransac-clientid'])) {
         $_SESSION['easytransac_last_error'] = 'EasyTransac OneClick payment not available.';
@@ -444,6 +449,8 @@ function easytransac_order_form($form, &$form_state, $order, $settings)
 {
     $api_key = null;
     extract(easytransac__expose_settings());
+    EasyTransac\Core\Logger::getInstance()->setActive(isset($debug_mode) && !empty($debug_mode));
+    EasyTransac\Core\Logger::getInstance()->setFilePath(__DIR__ . '/logs/');
 
     // Order amount.
     $amount = easytransac__order_amount($order);
@@ -692,6 +699,8 @@ function easytransac_listcards()
     $output = array('status' => 0);
     $api_key = null;
     extract(easytransac__expose_settings());
+    EasyTransac\Core\Logger::getInstance()->setActive(isset($debug_mode) && !empty($debug_mode));
+    EasyTransac\Core\Logger::getInstance()->setFilePath(__DIR__ . '/logs/');
     global $user;
     if (!empty($api_key) && !empty($user->data['easytransac-clientid'])) {
         EasyTransac\Core\Services::getInstance()->provideAPIKey($api_key);
