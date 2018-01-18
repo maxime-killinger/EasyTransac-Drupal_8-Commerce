@@ -235,8 +235,8 @@ function easytransac_submit_form($payment_method, $pane_values, $checkout_pane, 
         $form['oneclick_namespace']['#attached']['js'] = array(
             drupal_get_path('module', 'easytransac') . '/js/oneclick.js',
         );
-        return $form;
     }
+    return $form;
 }
 
 /**
