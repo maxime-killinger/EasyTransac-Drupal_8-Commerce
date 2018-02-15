@@ -160,8 +160,8 @@ class OneClickTransaction extends Entity
 
 	function setVersion($version)
 	{
-		$this->version = $version;
-                return $this;
+        $this->version = $version;
+        return $this;
 	}
 }
 
