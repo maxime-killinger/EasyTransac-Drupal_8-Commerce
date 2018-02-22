@@ -1,4 +1,3 @@
-# Created by .ignore support plugin (hsz.mobi)
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -62,3 +61,6 @@ flycheck_*.el
 /server/
 .projectile
 .dir-locals.el
+vendor/easytransac/easytransac-sdk-php/docs/*
+vendor/easytransac/easytransac-sdk-php/samples/*
+vendor/easytransac/easytransac-sdk-php/tests/*
