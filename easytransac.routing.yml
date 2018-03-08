@@ -1,0 +1,7 @@
+easytransac.config:
+  path: '/admin/config/easytransac/config'
+  defaults:
+    _form: '\Drupal\easytransac\Form\EasyTransacConfigForm'
+    _title: 'EasyTransac Module Configuration'
+  requirements:
+    _permission: 'administer site configuration'

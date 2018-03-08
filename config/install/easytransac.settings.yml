@@ -1,0 +1,9 @@
+easytransac:
+  enable: TRUE
+  title: 'EasyTransac'
+  api_key: ''
+  3dsecure: FALSE
+  oneclick: TRUE
+  notifurl: '/easytransac/notification'
+  debug_mode : FALSE
+langcode: en
