@@ -1,8 +1,8 @@
-name: EasyTransac Payment Module
-description: 'Implements Easytransac Website Payments in Drupal Commerce checkout. Please visit  <a target="_blank" href="https://www.easytransac.com">www.easytransac.com</a> and create an account first in order to get your API Key and to configure your application.'
-type: module
-version: 1.0
-core: 8.x
+name: EasyTransac for Drupal 8
+description: Acceptez les paiements par cartes de crédit avec EasyTransac. Créez votre compte sur <a href="http://www.easytransac.com/">www.easytransac.com</a> pour obtenir votre clé d'application (clé API) en suivant les étapes du guide d'installation. <b>EasyTransac a besoin de Drupal Commerce</b>.
 package: Commerce (contrib)
 dependencies:
   - commerce:commerce_payment
+type: module
+version: 1.0
+core: 8.x
